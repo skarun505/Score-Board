@@ -1,0 +1,16 @@
+node_modules/
+dist/
+client/dist/
+data/
+backups/
+.env
+.env.*
+!.env.example
+server/.env
+*.log
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.DS_Store
+Thumbs.db

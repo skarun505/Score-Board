@@ -1,0 +1,15 @@
+{
+  "name": "sales-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "24/7 Live Sales Dashboard for 108-inch TV with Mobile TL Kiosk and Admin Panel",
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "build": "npm run install:all && npm run build --prefix client",
+    "seed": "node server/src/seed.js",
+    "start": "node server/src/seed.js && node server/src/index.js",
+    "backup": "node scripts/backup.mjs",
+    "simulate": "node server/scripts/simulate.mjs",
+    "test": "npm test --prefix server && npm test --prefix client"
+  }
+}
