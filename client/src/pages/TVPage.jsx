@@ -110,6 +110,41 @@ export default function TVPage() {
   const [view, setView] = useState('today');
   const [shift, setShift] = useState({ x: 0, y: 0 });
   const [connError, setConnError] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(
+    typeof document !== 'undefined' ? Boolean(document.fullscreenElement) : false
+  );
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    try {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          document.documentElement.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const settingsRef = useRef({});
   const queue = useRef([]);
@@ -303,7 +338,12 @@ export default function TVPage() {
   const topPerformer = leaders.length > 0 ? leaders[0] : null;
 
   return (
-    <div className="tv-root" style={{ transform: `translate(${shift.x}px, ${shift.y}px)` }}>
+    <div
+      className="tv-root"
+      onDoubleClick={toggleFullscreen}
+      style={{ transform: `translate(${shift.x}px, ${shift.y}px)` }}
+      title="Double-click anywhere to toggle 108&quot; TV Fullscreen"
+    >
       {/* Stale Connection Warning Banner */}
       {stale && (
         <div className="tv-stale-banner">
@@ -379,6 +419,17 @@ export default function TVPage() {
             {new Date(now).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} · IST
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6em', marginTop: '0.25em' }}>
+            <button
+              className={`tv-fullscreen-btn ${isFullscreen ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter 108" TV Fullscreen Mode'}
+            >
+              <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
+              <span>{isFullscreen ? 'EXIT FULLSCREEN' : '108" FULLSCREEN'}</span>
+            </button>
             <button
               className={`tv-sound-badge-btn ${soundReady ? 'active' : 'unlocked-prompt'}`}
               onClick={(e) => {

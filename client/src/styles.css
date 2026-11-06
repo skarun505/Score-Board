@@ -35,10 +35,14 @@ button {
 .tv-root {
   position: fixed;
   inset: 0;
-  font-size: min(calc(100vw / 100), calc(100vh / 56));
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  font-size: min(calc(100vw / 96), calc(100vh / 54));
   display: flex;
   flex-direction: column;
-  padding: 0.8em 1.2em;
+  justify-content: space-between;
+  padding: 0.65em 1.1em;
   background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
   color: #0f172a;
   overflow: hidden;
@@ -120,15 +124,16 @@ button {
 /* --- TV Top Header (White / Clean) --- */
 .tv-header {
   display: grid;
-  grid-template-columns: 1.2fr 2fr 1.1fr;
+  grid-template-columns: 1.15fr 1.8fr 1.35fr;
   align-items: center;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1.2em;
-  padding: 0.85em 1.8em;
-  gap: 1.5em;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
-  margin-bottom: 1em;
+  border-radius: 1.1em;
+  padding: 0.65em 1.4em;
+  gap: 1.2em;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  margin-bottom: 0.65em;
+  flex-shrink: 0;
 }
 
 .tv-header-left {
@@ -303,20 +308,21 @@ button {
   flex: 1;
   display: grid;
   grid-template-columns: 1.15fr 1.35fr 1.1fr;
-  gap: 1.2em;
+  gap: 1em;
   min-height: 0;
-  margin-bottom: 0.9em;
+  margin-bottom: 0.65em;
 }
 
 .tv-column {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1.2em;
-  padding: 1.2em 1.4em;
+  border-radius: 1.1em;
+  padding: 0.85em 1.1em;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  min-height: 0;
 }
 
 .tv-col-header {
@@ -324,8 +330,9 @@ button {
   justify-content: space-between;
   align-items: center;
   border-bottom: 2px solid #f1f5f9;
-  padding-bottom: 0.7em;
-  margin-bottom: 0.9em;
+  padding-bottom: 0.5em;
+  margin-bottom: 0.6em;
+  flex-shrink: 0;
 }
 
 .tv-col-title-wrap {
@@ -369,21 +376,32 @@ button {
 }
 
 /* --- Program Leaderboard (Column 1) --- */
-.tv-program-list {
+.tv-programs-col {
   display: flex;
   flex-direction: column;
-  gap: 0.75em;
+  min-height: 0;
+}
+
+.tv-program-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.45em;
   overflow: hidden;
+  min-height: 0;
 }
 
 .tv-program-card {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
-  gap: 1em;
+  gap: 0.9em;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 1em;
-  padding: 0.85em 1.1em;
+  border-radius: 0.85em;
+  padding: 0.45em 0.9em;
   transition: all 0.2s ease;
 }
 
@@ -492,24 +510,29 @@ button {
 .tv-feed-col {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .tv-feed-list {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.6em;
+  justify-content: space-between;
+  gap: 0.45em;
   overflow: hidden;
+  min-height: 0;
 }
 
 .tv-feed-card {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
-  gap: 0.9em;
+  gap: 0.85em;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 0.9em;
-  padding: 0.6em 0.9em;
+  border-radius: 0.85em;
+  padding: 0.45em 0.85em;
   animation: tv-feed-in 0.5s ease-out;
 }
 
@@ -599,6 +622,7 @@ button {
 .tv-performers-col {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 /* Spotlight Card for #1 */
@@ -606,9 +630,10 @@ button {
   background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
   border: 2px solid #f59e0b;
   border-radius: 1.1em;
-  padding: 0.9em 1.1em;
-  margin-bottom: 0.9em;
+  padding: 0.7em 1em;
+  margin-bottom: 0.6em;
   box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+  flex-shrink: 0;
 }
 
 .spotlight-crown {
@@ -680,20 +705,25 @@ button {
 
 /* Champions List */
 .tv-champions-list {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.6em;
+  justify-content: space-between;
+  gap: 0.45em;
   overflow: hidden;
+  min-height: 0;
 }
 
 .tv-leader-row {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
-  gap: 0.8em;
+  gap: 0.75em;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 0.8em;
-  padding: 0.6em 0.9em;
+  padding: 0.4em 0.8em;
 }
 
 .tv-leader-rank {
@@ -771,12 +801,13 @@ button {
 .tv-program-wise-footer {
   display: flex;
   flex-direction: column;
-  gap: 0.6em;
+  gap: 0.45em;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 1.1em;
-  padding: 0.7em 1.2em 0.8em;
+  padding: 0.55em 1.2em 0.65em;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
 }
 
 .footer-title-strip {
@@ -1143,6 +1174,38 @@ button {
   font-weight: 800;
   color: #0f172a;
   box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Fullscreen Toggle Button in TV Header */
+.tv-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.95em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.35em 0.85em;
+  border-radius: 2em;
+  border: 1.5px solid #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+  white-space: nowrap;
+}
+
+.tv-fullscreen-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+}
+
+.tv-fullscreen-btn.active {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+  box-shadow: none;
 }
 
 /* Sound Status Button in TV Header */
