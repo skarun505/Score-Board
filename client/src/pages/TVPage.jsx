@@ -289,7 +289,7 @@ export default function TVPage() {
     return () => clearInterval(t);
   }, []);
 
-  const programsPage = usePage(snap?.programs || [], 8, 15000);
+  const programsPage = usePage(snap?.programs || [], 7, 15000);
   const footerProgramsPage = usePage(snap?.programs || [], 4, 15000);
 
   if (!snap) {
@@ -466,7 +466,7 @@ export default function TVPage() {
 
           <div className="tv-program-list">
             {programsPage.slice.map((p, i) => {
-              const rank = programsPage.page * 8 + i + 1;
+              const rank = programsPage.page * 7 + i + 1;
               const pTarget = p.daily_target || 0;
               const pSales = p.sales || 0;
               const pPct = pTarget > 0 ? Math.min(100, Math.round((pSales / pTarget) * 100)) : 0;
@@ -526,7 +526,7 @@ export default function TVPage() {
                 <span className="muted">Updates appear here automatically</span>
               </div>
             ) : (
-              snap.feed.slice(0, 10).map((f) => (
+              snap.feed.slice(0, 7).map((f) => (
                 <div key={f.id} className={`tv-feed-card ${f.is_sale ? 'is-sale-card' : ''}`}>
                   <div className="tv-feed-avatar-wrap">
                     <Avatar p={{ name: f.telecaller, photo_url: f.photo_url }} size="3em" />
@@ -588,7 +588,7 @@ export default function TVPage() {
                 <span className="muted">The first sale will take the #1 crown!</span>
               </div>
             ) : (
-              leaders.slice(topPerformer ? 1 : 0, 8).map((l, idx) => {
+              leaders.slice(topPerformer ? 1 : 0, topPerformer ? 7 : 8).map((l, idx) => {
                 const rankNum = (topPerformer ? 2 : 1) + idx;
                 return (
                   <div key={l.id} className="tv-leader-row">

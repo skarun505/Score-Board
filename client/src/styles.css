@@ -38,11 +38,11 @@ button {
   width: 100vw;
   height: 100vh;
   box-sizing: border-box;
-  font-size: min(calc(100vw / 96), calc(100vh / 54));
+  font-size: min(calc(100vw / 112), calc(100vh / 63));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0.65em 1.1em;
+  padding: 0.5em 0.85em;
   background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
   color: #0f172a;
   overflow: hidden;
@@ -128,11 +128,11 @@ button {
   align-items: center;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1.1em;
-  padding: 0.65em 1.4em;
-  gap: 1.2em;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
-  margin-bottom: 0.65em;
+  border-radius: 1em;
+  padding: 0.5em 1.2em;
+  gap: 1em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+  margin-bottom: 0.5em;
   flex-shrink: 0;
 }
 
@@ -199,7 +199,7 @@ button {
 }
 
 .tv-sales-giant-num {
-  font-size: 4.8em;
+  font-size: 4em;
   font-weight: 900;
   line-height: 1;
   color: #059669;
@@ -278,7 +278,7 @@ button {
 }
 
 .tv-clock-time {
-  font-size: 3.2em;
+  font-size: 2.7em;
   font-weight: 900;
   line-height: 1;
   color: #0f172a;
@@ -308,20 +308,20 @@ button {
   flex: 1;
   display: grid;
   grid-template-columns: 1.15fr 1.35fr 1.1fr;
-  gap: 1em;
+  gap: 0.75em;
   min-height: 0;
-  margin-bottom: 0.65em;
+  margin-bottom: 0.5em;
 }
 
 .tv-column {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1.1em;
-  padding: 0.85em 1.1em;
+  border-radius: 1em;
+  padding: 0.7em 0.9em;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
   min-height: 0;
 }
 
@@ -330,8 +330,8 @@ button {
   justify-content: space-between;
   align-items: center;
   border-bottom: 2px solid #f1f5f9;
-  padding-bottom: 0.5em;
-  margin-bottom: 0.6em;
+  padding-bottom: 0.4em;
+  margin-bottom: 0.45em;
   flex-shrink: 0;
 }
 
@@ -342,12 +342,12 @@ button {
 }
 
 .tv-col-icon {
-  font-size: 1.6em;
+  font-size: 1.4em;
 }
 
 .tv-col-header h2 {
   margin: 0;
-  font-size: 1.7em;
+  font-size: 1.45em;
   font-weight: 900;
   color: #0f172a;
   letter-spacing: 0.04em;
@@ -397,11 +397,11 @@ button {
   min-height: 0;
   display: flex;
   align-items: center;
-  gap: 0.9em;
+  gap: 0.75em;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 0.85em;
-  padding: 0.45em 0.9em;
+  border-radius: 0.75em;
+  padding: 0.35em 0.75em;
   transition: all 0.2s ease;
 }
 
@@ -412,7 +412,7 @@ button {
 }
 
 .tv-prog-rank {
-  font-size: 2.1em;
+  font-size: 1.6em;
   font-weight: 900;
   min-width: 1.3em;
   text-align: center;
@@ -428,7 +428,7 @@ button {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3em;
+  gap: 0.2em;
 }
 
 .tv-prog-name-row {
@@ -439,7 +439,7 @@ button {
 }
 
 .tv-prog-name {
-  font-size: 1.55em;
+  font-size: 1.35em;
   font-weight: 900;
   color: #0f172a;
   white-space: nowrap;
@@ -528,11 +528,11 @@ button {
   min-height: 0;
   display: flex;
   align-items: center;
-  gap: 0.85em;
+  gap: 0.75em;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 0.85em;
-  padding: 0.45em 0.85em;
+  border-radius: 0.75em;
+  padding: 0.35em 0.75em;
   animation: tv-feed-in 0.5s ease-out;
 }
 
@@ -571,7 +571,7 @@ button {
 }
 
 .tv-feed-caller {
-  font-size: 1.65em;
+  font-size: 1.35em;
   font-weight: 800;
   color: #0f172a;
   white-space: nowrap;
@@ -629,25 +629,25 @@ button {
 .tv-top-spotlight {
   background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
   border: 2px solid #f59e0b;
-  border-radius: 1.1em;
-  padding: 0.7em 1em;
-  margin-bottom: 0.6em;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+  border-radius: 0.9em;
+  padding: 0.55em 0.85em;
+  margin-bottom: 0.45em;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.15);
   flex-shrink: 0;
 }
 
 .spotlight-crown {
-  font-size: 1.2em;
+  font-size: 1.1em;
   font-weight: 900;
   color: #b45309;
   letter-spacing: 0.06em;
-  margin-bottom: 0.5em;
+  margin-bottom: 0.35em;
 }
 
 .spotlight-body {
   display: flex;
   align-items: center;
-  gap: 0.9em;
+  gap: 0.8em;
 }
 
 .spotlight-info {
@@ -656,7 +656,7 @@ button {
 }
 
 .spotlight-name {
-  font-size: 2em;
+  font-size: 1.65em;
   font-weight: 900;
   color: #0f172a;
   white-space: nowrap;
@@ -665,7 +665,7 @@ button {
 }
 
 .spotlight-prog {
-  font-size: 1.2em;
+  font-size: 1.1em;
   font-weight: 700;
   color: #475569;
   white-space: nowrap;
@@ -674,10 +674,10 @@ button {
 }
 
 .spotlight-conversion {
-  font-size: 1.1em;
+  font-size: 1em;
   font-weight: 800;
   color: #059669;
-  margin-top: 0.2em;
+  margin-top: 0.15em;
 }
 
 .spotlight-sales {
@@ -686,19 +686,19 @@ button {
   align-items: center;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 0.4em 0.85em;
-  border-radius: 0.8em;
+  padding: 0.35em 0.75em;
+  border-radius: 0.7em;
 }
 
 .spotlight-num {
-  font-size: 3.2em;
+  font-size: 2.6em;
   font-weight: 900;
   line-height: 1;
   color: #059669;
 }
 
 .spotlight-lbl {
-  font-size: 1em;
+  font-size: 0.9em;
   font-weight: 800;
   color: #64748b;
 }
@@ -709,7 +709,7 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.45em;
+  gap: 0.4em;
   overflow: hidden;
   min-height: 0;
 }
@@ -719,18 +719,18 @@ button {
   min-height: 0;
   display: flex;
   align-items: center;
-  gap: 0.75em;
+  gap: 0.7em;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 0.8em;
-  padding: 0.4em 0.8em;
+  border-radius: 0.75em;
+  padding: 0.35em 0.75em;
 }
 
 .tv-leader-rank {
-  font-size: 1.6em;
+  font-size: 1.4em;
   font-weight: 900;
   color: #64748b;
-  min-width: 1.4em;
+  min-width: 1.3em;
   text-align: center;
 }
 
@@ -740,7 +740,7 @@ button {
 }
 
 .tv-leader-name {
-  font-size: 1.55em;
+  font-size: 1.35em;
   font-weight: 800;
   color: #0f172a;
   white-space: nowrap;
@@ -801,12 +801,12 @@ button {
 .tv-program-wise-footer {
   display: flex;
   flex-direction: column;
-  gap: 0.45em;
+  gap: 0.35em;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1.1em;
-  padding: 0.55em 1.2em 0.65em;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+  border-radius: 1em;
+  padding: 0.45em 1em 0.55em;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.03);
   flex-shrink: 0;
 }
 
@@ -814,15 +814,15 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 0.4em;
+  padding-bottom: 0.3em;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .footer-title {
   display: flex;
   align-items: center;
-  gap: 0.6em;
-  font-size: 1.05em;
+  gap: 0.5em;
+  font-size: 0.95em;
   font-weight: 900;
   color: #0f172a;
   letter-spacing: 0.04em;
@@ -837,17 +837,17 @@ button {
 .footer-status-legend {
   display: flex;
   align-items: center;
-  gap: 0.9em;
+  gap: 0.7em;
 }
 
 .legend-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
-  font-size: 0.8em;
+  font-size: 0.75em;
   font-weight: 800;
   text-transform: uppercase;
-  padding: 0.2em 0.65em;
+  padding: 0.15em 0.55em;
   border-radius: 0.5em;
 }
 
@@ -878,17 +878,17 @@ button {
 .footer-programs-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.8em;
+  gap: 0.65em;
 }
 
 .footer-program-box {
   background: #f8fafc;
   border: 1.5px solid #e2e8f0;
-  border-radius: 0.9em;
-  padding: 0.65em 0.85em;
+  border-radius: 0.8em;
+  padding: 0.45em 0.7em;
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
+  gap: 0.35em;
   min-width: 0;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
