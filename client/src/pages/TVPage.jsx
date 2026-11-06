@@ -304,19 +304,6 @@ export default function TVPage() {
 
   return (
     <div className="tv-root" style={{ transform: `translate(${shift.x}px, ${shift.y}px)` }}>
-      {/* Sound unlock gate */}
-      {!soundReady && (
-        <button
-          className="tv-sound-gate-btn"
-          onClick={() => {
-            unlockAudio();
-            setSoundReady(true);
-          }}
-        >
-          <i className="fas fa-bell"></i> Click once to enable 108" Audio Celebrations
-        </button>
-      )}
-
       {/* Stale Connection Warning Banner */}
       {stale && (
         <div className="tv-stale-banner">
