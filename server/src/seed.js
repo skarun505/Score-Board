@@ -53,6 +53,15 @@ if (!db.prepare('SELECT 1 FROM users WHERE employee_code = ?').get(adminCode)) {
   console.log(`Created admin ${adminCode}. CHANGE THE PIN IMMEDIATELY.`);
 }
 
+/* Guard: Do NOT re-seed or overwrite if database already contains floor team */
+const existingTeamCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('tl', 'telecaller')").get()?.c || 0;
+if (existingTeamCount >= 4) {
+  console.log(`Database already contains ${existingTeamCount} team members. Preserving all existing counselors, programs, batch targets, and sales closures.`);
+  db.prepare('DELETE FROM login_attempts').run();
+  console.log('Seed check complete — live data preserved.');
+  process.exit(0);
+}
+
 /* Programs and Team Leaders from DSA.pdf:
    4 Team Leaders:
    1. Tanmay Makhija (TL001) -> 3 Programs (TATA AIG, HDFC Life, ABC)

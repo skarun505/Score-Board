@@ -329,6 +329,111 @@ router.get('/backup/download', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+router.get('/backup/export-json', (req, res, next) => {
+  try {
+    const data = {
+      exported_at: new Date().toISOString(),
+      programs: db.prepare('SELECT * FROM programs').all(),
+      users: db.prepare('SELECT id, name, role, employee_code, pin_hash, program_id, tl_id, photo_url, birthday, hire_date, active FROM users').all(),
+      batches: db.prepare('SELECT * FROM batches').all(),
+      events: db.prepare('SELECT * FROM events').all(),
+      daily_adjustments: db.prepare('SELECT * FROM daily_adjustments').all(),
+      settings: db.prepare('SELECT * FROM settings').all(),
+      statuses: db.prepare('SELECT * FROM statuses').all(),
+    };
+    audit(req.user.id, 'database.export_json', 'database', null, {});
+    res.setHeader('Content-Disposition', `attachment; filename="dashboard-backup-${businessDate()}.json"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(data, null, 2));
+  } catch (e) { next(e); }
+});
+
+router.post('/backup/import-json', (req, res, next) => {
+  try {
+    const { data } = req.body || {};
+    if (!data || !Array.isArray(data.users) || !Array.isArray(data.programs)) {
+      throw new HttpError(400, 'Invalid backup format. Must contain programs and users arrays.');
+    }
+
+    const runImport = db.transaction(() => {
+      db.pragma('foreign_keys = OFF');
+
+      db.prepare('DELETE FROM daily_adjustments').run();
+      db.prepare('DELETE FROM events').run();
+      db.prepare('DELETE FROM batches').run();
+      db.prepare('DELETE FROM users').run();
+      db.prepare('DELETE FROM programs').run();
+
+      const insProg = db.prepare('INSERT INTO programs (id, name, daily_target, active) VALUES (?, ?, ?, ?)');
+      for (const p of data.programs || []) {
+        insProg.run(p.id, p.name, p.daily_target ?? 0, p.active ?? 1);
+      }
+
+      const insUser = db.prepare(`
+        INSERT INTO users (id, name, role, employee_code, pin_hash, program_id, tl_id, photo_url, birthday, hire_date, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const u of data.users || []) {
+        insUser.run(u.id, u.name, u.role, u.employee_code, u.pin_hash, u.program_id, u.tl_id, u.photo_url, u.birthday, u.hire_date, u.active ?? 1);
+      }
+
+      if (Array.isArray(data.batches)) {
+        const insBatch = db.prepare(`
+          INSERT INTO batches (id, name, program_id, target, active, start_date, end_date, created_by, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const b of data.batches) {
+          insBatch.run(b.id, b.name, b.program_id, b.target ?? 0, b.active ?? 1, b.start_date, b.end_date, b.created_by, b.created_at || new Date().toISOString());
+        }
+      }
+
+      if (Array.isArray(data.events)) {
+        const insEvent = db.prepare(`
+          INSERT INTO events (id, telecaller_id, program_id, tl_id, status_id, lead_ref, created_by, created_at, business_date, voided, voided_by, voided_at, void_reason, batch_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const e of data.events) {
+          insEvent.run(
+            e.id, e.telecaller_id, e.program_id, e.tl_id, e.status_id, e.lead_ref,
+            e.created_by, e.created_at, e.business_date, e.voided ?? 0,
+            e.voided_by, e.voided_at, e.void_reason, e.batch_id ?? null
+          );
+        }
+      }
+
+      if (Array.isArray(data.daily_adjustments)) {
+        const insAdj = db.prepare(`
+          INSERT INTO daily_adjustments (id, telecaller_id, status_code, business_date, adjusted_by, old_count, new_count, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const a of data.daily_adjustments) {
+          insAdj.run(a.id, a.telecaller_id, a.status_code, a.business_date, a.adjusted_by, a.old_count, a.new_count, a.created_at);
+        }
+      }
+
+      if (Array.isArray(data.settings)) {
+        const insSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+        for (const s of data.settings) {
+          insSetting.run(s.key, s.value);
+        }
+      }
+
+      db.pragma('foreign_keys = ON');
+    });
+
+    runImport();
+    audit(req.user.id, 'database.import_json', 'database', null, {
+      events_count: data.events?.length || 0,
+      users_count: data.users?.length || 0,
+    });
+    refresh(req);
+    res.json({
+      ok: true,
+      message: `Successfully restored ${data.events?.length || 0} events, ${data.batches?.length || 0} batches, and ${data.users?.length || 0} users from backup!`,
+    });
+  } catch (e) { next(e); }
+});
+
 /* ---------- Weekly and Monthly Progress Analytics ---------- */
 router.get('/analytics/progress', (req, res, next) => {
   try {

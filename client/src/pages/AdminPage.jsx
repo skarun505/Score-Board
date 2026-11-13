@@ -209,6 +209,32 @@ export default function AdminPage() {
     window.open(`/api/admin/backup/download?token=${token}`, '_blank');
   }
 
+  function exportJsonBackup() {
+    window.open(`/api/admin/backup/export-json?token=${token}`, '_blank');
+  }
+
+  async function handleRestoreFile(file) {
+    if (!file) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to restore data from "${file.name}"?\n\nThis will restore all sales closures, batches, programs, and counselors from this backup.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await api('/api/admin/backup/import-json', {
+        method: 'POST',
+        token,
+        body: { data: parsed },
+      });
+      alert(res.message || 'Backup restored successfully!');
+      fetchAll();
+    } catch (err) {
+      alert(`Restore failed: ${err.message || 'Invalid JSON backup file'}`);
+    }
+  }
+
   // Settings update
   async function saveSettings(e) {
     e.preventDefault();
@@ -852,14 +878,60 @@ export default function AdminPage() {
                 <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Loading health metrics…</div>
               )}
 
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={downloadBackup}
-                style={{ width: '100%' }}
-              >
-                <i className="fas fa-download"></i> Download Database Backup (.db)
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={downloadBackup}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', fontSize: '0.85rem', padding: '0.65rem 0.8rem' }}
+                    title="Download raw SQLite database file"
+                  >
+                    <i className="fas fa-download"></i> Download .db
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={exportJsonBackup}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', fontSize: '0.85rem', padding: '0.65rem 0.8rem' }}
+                    title="Export complete database as portable JSON"
+                  >
+                    <i className="fas fa-file-export"></i> Export JSON Backup
+                  </button>
+                </div>
+
+                <label
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    padding: '0.65rem 1rem',
+                    background: '#fdf4ff',
+                    border: '1.5px solid #f0abfc',
+                    color: '#a21caf',
+                    fontWeight: 700,
+                    borderRadius: '0.6rem',
+                    margin: 0,
+                  }}
+                  title="Upload a previously exported JSON backup to restore all records"
+                >
+                  <i className="fas fa-upload"></i> Restore from JSON Backup
+                  <input
+                    type="file"
+                    accept=".json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleRestoreFile(f);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
             </div>
           </div>
         )}
