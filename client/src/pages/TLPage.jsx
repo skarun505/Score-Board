@@ -804,6 +804,297 @@ function ChangePinModal({ token, onClose }) {
   );
 }
 
+/* ─── Batch Management & Program Target Modal ─── */
+function BatchManagementModal({ token, programs, onDone, onClose }) {
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingProgId, setEditingProgId] = useState(null);
+  const [editTargetValue, setEditTargetValue] = useState('');
+
+  // Create batch form
+  const [selectedProgId, setSelectedProgId] = useState('');
+  const [batchName, setBatchName] = useState('');
+  const [batchTarget, setBatchTarget] = useState(50);
+  const [setActive, setSetActive] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function loadBatches() {
+    setLoading(true);
+    try {
+      const data = await api('/api/tl/batches', { token });
+      setBatches(data || []);
+    } catch (e) {
+      setErr(e.message || 'Failed to load batches');
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadBatches();
+    if (programs.length > 0) {
+      setSelectedProgId(programs[0].id);
+    }
+  }, [programs]);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!selectedProgId || !batchName.trim()) {
+      setErr('Please select a program and enter a batch name');
+      return;
+    }
+    setSaving(true);
+    setErr('');
+    setSuccess('');
+    try {
+      const res = await api('/api/tl/batches', {
+        method: 'POST',
+        token,
+        body: {
+          program_id: Number(selectedProgId),
+          name: batchName.trim(),
+          target: Number(batchTarget) || 0,
+          set_active: setActive,
+        },
+      });
+      setSuccess(res.message);
+      setBatchName('');
+      setShowCreate(false);
+      await loadBatches();
+      onDone();
+    } catch (ex) {
+      setErr(ex.message || 'Failed to create batch');
+    }
+    setSaving(false);
+  }
+
+  async function handleQuickTargetSave(progId) {
+    if (!editTargetValue || isNaN(Number(editTargetValue))) return;
+    setSaving(true);
+    setErr('');
+    try {
+      const res = await api(`/api/tl/programs/${progId}/batch-target`, {
+        method: 'POST',
+        token,
+        body: { target: Number(editTargetValue) },
+      });
+      setSuccess(res.message);
+      setEditingProgId(null);
+      await loadBatches();
+      onDone();
+    } catch (ex) {
+      setErr(ex.message || 'Failed to update target');
+    }
+    setSaving(false);
+  }
+
+  // Active batches per program
+  const activeBatches = batches.filter((b) => b.active === 1);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modern-modal-card" style={{ maxWidth: '48rem', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header-row">
+          <div className="modal-title">
+            <i className="fas fa-layer-group text-primary"></i>
+            <h3>Batch Targets & Cohort Management</h3>
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.8rem 0' }}>
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            Configure batch-wise targets for each program and create new cohorts. Changes reflect live on 108" TV immediately.
+          </p>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+            onClick={() => { setShowCreate(!showCreate); setErr(''); setSuccess(''); }}
+          >
+            <i className={`fas ${showCreate ? 'fa-minus' : 'fa-plus'}`}></i> {showCreate ? 'Close Form' : '+ New Batch'}
+          </button>
+        </div>
+
+        {err && <div className="modal-err-box"><i className="fas fa-circle-exclamation" /> {err}</div>}
+        {success && <div className="modal-success-box"><i className="fas fa-circle-check" /> {success}</div>}
+
+        {/* Create Batch Collapsible Form */}
+        {showCreate && (
+          <form onSubmit={handleCreate} className="modern-modal-form" style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.9rem', border: '1.5px solid #e2e8f0', marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 0.8rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="fas fa-sparkles text-primary"></i> Create New Program Batch
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.8rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Program</label>
+                <select
+                  value={selectedProgId}
+                  onChange={(e) => setSelectedProgId(e.target.value)}
+                  required
+                >
+                  {programs.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Batch Name / Code</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Batch 102, Nov Cohort"
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Batch Sales Target</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5000"
+                  value={batchTarget}
+                  onChange={(e) => setBatchTarget(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.8rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={setActive}
+                  onChange={(e) => setSetActive(e.target.checked)}
+                />
+                <span>Set as current active batch for this program</span>
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={saving}>
+                  {saving ? <><i className="fas fa-spinner fa-spin" /> Saving…</> : <><i className="fas fa-check" /> Create & Activate Batch</>}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* Batches Table / Program Target List */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <i className="fas fa-spinner fa-spin" style={{ fontSize: '1.8rem', color: '#2563eb' }} />
+            <p>Loading batches…</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+              <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#475569' }}>Active Program Batches ({activeBatches.length})</span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Click target to quickly edit</span>
+            </div>
+
+            {programs.map((p) => {
+              const activeB = batches.find((b) => b.program_id === p.id && b.active === 1);
+              const bSales = activeB ? activeB.sales : 0;
+              const bTarget = activeB ? activeB.target : (p.daily_target || 50);
+              const pct = Math.min(100, Math.round((bSales / (bTarget || 1)) * 100));
+              const isEditing = editingProgId === p.id;
+
+              return (
+                <div key={p.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.75rem 1rem',
+                  background: '#ffffff',
+                  border: '1.5px solid #e2e8f0',
+                  borderRadius: '0.85rem',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                }}>
+                  <div style={{ minWidth: '160px', flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a' }}>{p.name}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                      <span className="pill blue" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
+                        <i className="fas fa-layer-group"></i> {activeB?.name || 'Batch 1'}
+                      </span>
+                      <span>· Started {activeB?.start_date || 'Today'}</span>
+                    </div>
+                  </div>
+
+                  {/* Target & Sales progress */}
+                  <div style={{ minWidth: '200px', flex: 1.5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                      <span>Batch Sales: <b>{bSales}</b> / {bTarget}</span>
+                      <span style={{ fontWeight: 800, color: '#059669' }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: '0.55rem', background: '#e2e8f0', borderRadius: '1rem', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '1rem' }} />
+                    </div>
+                  </div>
+
+                  {/* Target Edit & Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <input
+                          type="number"
+                          style={{ width: '80px', padding: '0.35rem 0.5rem', borderRadius: '0.5rem', border: '1.5px solid #2563eb', fontSize: '0.9rem' }}
+                          value={editTargetValue}
+                          onChange={(e) => setEditTargetValue(e.target.value)}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                          onClick={() => handleQuickTargetSave(p.id)}
+                          disabled={saving}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
+                          onClick={() => setEditingProgId(null)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                        onClick={() => {
+                          setEditingProgId(p.id);
+                          setEditTargetValue(String(bTarget));
+                          setErr('');
+                          setSuccess('');
+                        }}
+                        title="Change target for this program's batch"
+                      >
+                        <i className="fas fa-pencil text-primary"></i>
+                        <span>Edit Target ({bTarget})</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="modal-btn-row" style={{ marginTop: '1.2rem' }}>
+          <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Avatar({ p, size = '4.2rem' }) {
   const initials = p.name ? p.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '??';
   return p.photo_url ? (
@@ -963,6 +1254,7 @@ export default function TLPage() {
   const [showReports, setShowReports] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [showChangePin, setShowChangePin] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
 
   const timer = useRef();
   const token = session?.token;
@@ -1142,6 +1434,14 @@ export default function TLPage() {
           onClose={() => setShowChangePin(false)}
         />
       )}
+      {showBatchModal && (
+        <BatchManagementModal
+          token={token}
+          programs={programs}
+          onDone={loadTeam}
+          onClose={() => setShowBatchModal(false)}
+        />
+      )}
 
       {/* Top Header */}
       <header className="tl-topbar">
@@ -1159,6 +1459,9 @@ export default function TLPage() {
         </div>
 
         <div className="tl-topbar-user">
+          <button className="tl-btn-action-pill batch" onClick={() => setShowBatchModal(true)} title="Manage batches and set program-wise targets">
+            <i className="fas fa-bullseye"></i> 🎯 Batches & Targets
+          </button>
           <button className="tl-btn-action-pill add" onClick={() => setShowAddCounselor(true)} title="Add a new counselor to your team">
             <i className="fas fa-user-plus"></i> + Add Counselor
           </button>

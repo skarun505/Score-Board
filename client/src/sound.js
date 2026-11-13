@@ -183,18 +183,24 @@ export function play(name, settings, scale = 1) {
   const vol = calculateVolume(settings, new Date(), scale);
   if (vol <= 0) return;
 
-  // 1. Try HTML5 Audio file
+  // 1. Play authentic Audio file first (e.g. Bell Sound for sales closure)
   const a = load(name);
   if (a) {
     a.currentTime = 0;
     a.volume = vol;
-    a.play().catch(() => {});
-  }
-
-  // 2. Play Web Audio synth for instantaneous, guaranteed sound
-  try {
-    playSynth(name, vol);
-  } catch (err) {
-    // ignore
+    const promise = a.play();
+    if (promise && typeof promise.catch === 'function') {
+      promise.catch(() => {
+        // Fallback to Web Audio synth only if HTML5 audio fails
+        try { playSynth(name, vol); } catch {}
+      });
+    }
+  } else {
+    // 2. Play Web Audio synth as fallback
+    try {
+      playSynth(name, vol);
+    } catch (err) {
+      // ignore
+    }
   }
 }

@@ -106,10 +106,24 @@ CREATE TABLE IF NOT EXISTS daily_adjustments (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_adj_tc_status_date ON daily_adjustments(telecaller_id, status_code, business_date);
 
+CREATE TABLE IF NOT EXISTS batches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  program_id INTEGER NOT NULL REFERENCES programs(id),
+  target INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  start_date TEXT,
+  end_date TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_batches_prog ON batches (program_id, active);
+
 `);
 
 try { db.exec('ALTER TABLE users ADD COLUMN birthday TEXT'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN hire_date TEXT'); } catch {}
+try { db.exec('ALTER TABLE events ADD COLUMN batch_id INTEGER REFERENCES batches(id)'); } catch {}
 
 export const TZ = process.env.TZ_NAME || 'Asia/Kolkata';
 const DAY_START = Number(process.env.DAY_START_HOUR || 0);
@@ -124,3 +138,28 @@ export function audit(actorId, action, entity, entityId, details) {
   ).run(actorId ?? null, action, entity ?? null, entityId ?? null,
         details ? JSON.stringify(details) : null, new Date().toISOString());
 }
+
+export function ensureDefaultBatches() {
+  try {
+    const progs = db.prepare('SELECT id, name, daily_target FROM programs WHERE active = 1').all();
+    const checkBatch = db.prepare('SELECT id FROM batches WHERE program_id = ? AND active = 1');
+    const insBatch = db.prepare(`
+      INSERT INTO batches (name, program_id, target, active, start_date, created_at)
+      VALUES (?, ?, ?, 1, ?, ?)
+    `);
+    const today = businessDate();
+    const nowIso = new Date().toISOString();
+    for (const p of progs) {
+      const existing = checkBatch.get(p.id);
+      if (!existing) {
+        const batchTarget = p.daily_target > 0 ? p.daily_target * 5 : 50;
+        insBatch.run('Batch 1', p.id, batchTarget, today, nowIso);
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
+ensureDefaultBatches();
+

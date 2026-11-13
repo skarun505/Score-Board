@@ -126,6 +126,7 @@ describe('Live Sales Dashboard Server Tests', () => {
   test('5. Milestone detection: first sale, target hit, every Nth sale', async () => {
     // Set low target on Program A to test target_hit
     db.prepare('UPDATE programs SET daily_target = 2 WHERE id = ?').run(tl1.program_id);
+    db.prepare('UPDATE batches SET target = 2 WHERE program_id = ? AND active = 1').run(tl1.program_id);
 
     // First sale of the day -> milestone: first_sale
     const r1 = recordEvent({ actor: tl1, telecallerId: tc1.id, statusCode: 'sale_closed', confirmDuplicate: true });

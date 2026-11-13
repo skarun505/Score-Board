@@ -212,20 +212,82 @@ export function getSnapshot() {
   const nudgesEnabled = settings.gamification_enabled === '1' || settings.nudges_enabled === '1';
   const celebrationBannersEnabled = settings.gamification_enabled === '1' || settings.celebrations_banner_enabled === '1';
 
+  // Active batches per program
+  const activeBatches = db.prepare(`
+    SELECT id, program_id, name, target, start_date
+    FROM batches
+    WHERE active = 1
+  `).all();
+  const batchMap = Object.fromEntries(activeBatches.map((b) => [b.program_id, b]));
+
   const programRows = programs.map((p) => {
     const mine = counts.filter((c) => c.program_id === p.id);
-    const sales = mine.filter((c) => c.is_sale).reduce((a, c) => a + c.n, 0);
+    const todaySales = mine.filter((c) => c.is_sale).reduce((a, c) => a + c.n, 0);
+    const activeBatch = batchMap[p.id];
+    const batchName = activeBatch?.name || 'Batch 1';
+    const batchTarget = activeBatch?.target || (p.daily_target > 0 ? p.daily_target * 5 : 50);
+    const batchId = activeBatch?.id || null;
+
+    let batchSales = 0;
+    if (batchId) {
+      const bRow = db.prepare(`
+        SELECT COUNT(*) AS n FROM events e
+        JOIN statuses s ON s.id = e.status_id
+        WHERE e.program_id = ? AND e.voided = 0 AND s.is_sale = 1
+          AND (e.batch_id = ? OR e.created_at >= ?)
+      `).get(p.id, batchId, activeBatch.start_date || '2000-01-01');
+      batchSales = bRow?.n || 0;
+    } else {
+      batchSales = todaySales;
+    }
+
     const y = ydayMap[p.id] || 0;
-    const streak = streaksEnabled ? calculateProgramStreak(p.id, p.daily_target, today) : 0;
+    const streak = streaksEnabled ? calculateProgramStreak(p.id, batchTarget, today) : 0;
     return {
       ...p,
-      sales,
+      batch_id: batchId,
+      batch_name: batchName,
+      batch_target: batchTarget,
+      batch_sales: batchSales,
+      sales: batchSales,
+      today_sales: todaySales,
+      daily_target: batchTarget,
+      target: batchTarget,
       by_status: Object.fromEntries(mine.map((c) => [c.code, c.n])),
       yesterday_same_time: y,
-      trend: sales > y ? 'up' : sales < y ? 'down' : 'flat',
+      trend: todaySales > y ? 'up' : todaySales < y ? 'down' : 'flat',
       streak,
     };
-  }).sort((a, b) => b.sales - a.sales);
+  }).sort((a, b) => b.batch_sales - a.batch_sales || b.today_sales - a.today_sales);
+
+  // Program-wise champions: rank counselors in each program for 30s TV rotation
+  const programChampions = programRows.map((p) => {
+    const callers = db.prepare(`
+      SELECT u.id, u.name, u.photo_url, u.employee_code, p.name AS program,
+             SUM(CASE WHEN s.is_sale = 1 THEN 1 ELSE 0 END) AS sales,
+             COUNT(*) AS updates
+      FROM events e
+      JOIN users u ON u.id = e.telecaller_id
+      JOIN programs p ON p.id = e.program_id
+      JOIN statuses s ON s.id = e.status_id
+      WHERE e.program_id = ? AND e.voided = 0
+      GROUP BY u.id
+      HAVING sales > 0
+      ORDER BY sales DESC, updates ASC
+      LIMIT 8
+    `).all(p.id).map((r) => ({ ...r, conversion: Math.round((r.sales / (r.updates || 1)) * 100) }));
+
+    return {
+      program_id: p.id,
+      program_name: p.name,
+      batch_id: p.batch_id,
+      batch_name: p.batch_name,
+      batch_target: p.batch_target,
+      batch_sales: p.batch_sales,
+      top_performer: callers.length > 0 ? callers[0] : null,
+      leaders: callers,
+    };
+  });
 
   const monthSales = db.prepare(`
     SELECT COUNT(*) AS n FROM events e JOIN statuses s ON s.id = e.status_id
@@ -235,9 +297,9 @@ export function getSnapshot() {
     SELECT COUNT(*) AS n FROM events e JOIN statuses s ON s.id = e.status_id
     WHERE e.business_date BETWEEN ? AND ? AND e.voided = 0 AND s.is_sale = 1`).get(weekFrom, today).n;
 
-  // Weekly target = sum of each program's daily_target * 6 working days (Mon–Sat)
-  const WEEK_DAYS = 6;
-  const weekTarget = programRows.reduce((a, p) => a + (p.daily_target || 0), 0) * WEEK_DAYS;
+  const totalBatchTarget = programRows.reduce((a, p) => a + (p.batch_target || 0), 0);
+  const totalBatchSales = programRows.reduce((a, p) => a + (p.batch_sales || 0), 0);
+  const totalTodaySales = programRows.reduce((a, p) => a + (p.today_sales || 0), 0);
 
   const feed = db.prepare(`
     SELECT e.id, e.created_at, u.name AS telecaller, u.photo_url, p.name AS program,
@@ -306,13 +368,17 @@ export function getSnapshot() {
     generated_at: now.toISOString(),
     date: today,
     totals: {
-      sales: programRows.reduce((a, p) => a + p.sales, 0),
-      target: programRows.reduce((a, p) => a + p.daily_target, 0),
+      sales: totalBatchSales,
+      target: totalBatchTarget,
+      batch_sales: totalBatchSales,
+      batch_target: totalBatchTarget,
+      today_sales: totalTodaySales,
       week_sales: weekSales,
-      week_target: weekTarget,
+      week_target: totalBatchTarget,
       month_sales: monthSales,
     },
     programs: programRows,
+    program_champions: programChampions,
     top_today: topToday,
     top_week: topWeek,
     feed,

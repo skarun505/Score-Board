@@ -625,6 +625,46 @@ button {
   min-height: 0;
 }
 
+/* 30s Program-Wise Champion Batch Sub-strip */
+.tv-prog-champ-batch-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.6em;
+  padding: 0.35em 0.8em;
+  margin-bottom: 0.45em;
+  font-size: 0.95em;
+  flex-shrink: 0;
+}
+
+.tv-prog-champ-batch-strip .strip-left {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.tv-prog-champ-batch-strip .strip-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-weight: 700;
+  color: #475569;
+}
+
+.tv-prog-champ-batch-strip .strip-right b {
+  color: #059669;
+  font-weight: 900;
+}
+
+.tv-prog-champ-batch-strip .strip-pct {
+  color: #0284c7;
+  font-weight: 800;
+}
+
 /* Spotlight Card for #1 */
 .tv-top-spotlight {
   background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
@@ -3603,6 +3643,17 @@ button {
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.15s ease;
+}
+
+.tl-btn-action-pill.batch {
+  background: #fdf4ff;
+  border-color: #f0abfc;
+  color: #a21caf;
+}
+.tl-btn-action-pill.batch:hover {
+  background: #a21caf;
+  border-color: #a21caf;
+  color: #ffffff;
 }
 
 .tl-btn-action-pill.add {

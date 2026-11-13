@@ -110,6 +110,7 @@ export default function TVPage() {
   const [view, setView] = useState('today');
   const [shift, setShift] = useState({ x: 0, y: 0 });
   const [connError, setConnError] = useState(null);
+  const [progChampIndex, setProgChampIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== 'undefined' ? Boolean(document.fullscreenElement) : false
   );
@@ -260,12 +261,13 @@ export default function TVPage() {
     };
   }, []);
 
-  /* Rotate right panel between today and 7 days */
-  const rotSec = Number(snap?.settings?.tv_rotation_sec || 25);
+  /* Rotate right panel every 30 seconds across Program-Wise Champions */
   useEffect(() => {
-    const t = setInterval(() => setView((v) => (v === 'today' ? 'week' : 'today')), rotSec * 1000);
+    const t = setInterval(() => {
+      setProgChampIndex((idx) => idx + 1);
+    }, 30_000);
     return () => clearInterval(t);
-  }, [rotSec]);
+  }, []);
 
   /* Nightly auto-reload at 03:30 IST */
   useEffect(() => {
@@ -324,10 +326,15 @@ export default function TVPage() {
 
   const stale = !online || !lastUpdate || now - lastUpdate > STALE_MS;
   const agoSec = Math.round((now - lastUpdate) / 1000);
-  const target = snap.totals.week_target || 0;
-  const sales = snap.totals.week_sales || 0;
+  const target = snap.totals.batch_target || snap.totals.target || 1;
+  const sales = snap.totals.batch_sales ?? snap.totals.sales ?? 0;
   const pct = target > 0 ? Math.min(100, Math.round((sales / target) * 100)) : 0;
-  const leaders = view === 'today' ? snap.top_today : snap.top_week;
+  const leaders = snap.top_today || [];
+
+  const programChampions = snap.program_champions || [];
+  const currentProgChamp = programChampions.length > 0
+    ? programChampions[progChampIndex % programChampions.length]
+    : null;
 
   // Aggregate totals across all programs
   const totalFollowups = (snap.programs || []).reduce((acc, p) => acc + (p.by_status?.follow_up || 0), 0);
@@ -383,14 +390,14 @@ export default function TVPage() {
           <div className="tv-headline">FLOOR PERFORMANCE WALLBOARD</div>
         </div>
 
-        {/* Center Mega Sales Metric */}
+        {/* Center Mega Sales Metric (Batch-Wise Target) */}
         <div className="tv-header-center">
           <div className="tv-sales-score-row">
             <div className="tv-sales-big-group">
               <span className="tv-sales-giant-num">{sales}</span>
               <div className="tv-sales-labels">
-                <span className="tv-sales-main-lbl">SALES THIS WEEK</span>
-                <span className="tv-sales-target-lbl">OF {target} TARGET</span>
+                <span className="tv-sales-main-lbl">BATCH SALES</span>
+                <span className="tv-sales-target-lbl">OF {target} BATCH TARGET</span>
               </div>
             </div>
 
@@ -401,8 +408,8 @@ export default function TVPage() {
               <div className="tv-progress-meta">
                 <span className="tv-pct-badge">{pct}% ACHIEVED</span>
                 <span className="tv-rem-badge">
-                  {target > sales ? `${target - sales} to weekly goal` : (
-                    <span><i className="fas fa-check-circle"></i> GOAL REACHED!</span>
+                  {target > sales ? `${target - sales} to batch goal` : (
+                    <span><i className="fas fa-check-circle"></i> BATCH TARGET REACHED!</span>
                   )}
                 </span>
               </div>
@@ -483,14 +490,14 @@ export default function TVPage() {
                   <div className="tv-prog-info">
                     <div className="tv-prog-name-row">
                       <span className="tv-prog-name" title={p.name}>{p.name}</span>
-                      <span className="tv-tl-badge"><i className="fas fa-bullseye"></i> Target: {p.daily_target}</span>
+                      <span className="tv-tl-badge"><i className="fas fa-layer-group"></i> {p.batch_name || 'Batch'} · Target: {pTarget}</span>
                       {p.streak > 1 && <span className="tv-streak-badge"><i className="fas fa-fire"></i> {p.streak}d streak</span>}
                     </div>
                     <div className="tv-prog-bar-track">
                       <div className="tv-prog-bar-fill" style={{ width: `${pPct}%` }} />
                     </div>
                     <div className="tv-prog-sub-meta">
-                      <span>Target: {pTarget} ({pPct}%)</span>
+                      <span>Batch: <b>{pSales}</b> / {pTarget} ({pPct}%)</span>
                       <span className={`tv-trend-tag ${p.trend}`}>
                         {p.trend === 'up' ? <span><i className="fas fa-arrow-up"></i> Trending Up</span> :
                          p.trend === 'down' ? <span><i className="fas fa-arrow-down"></i> Down vs yday</span> :
@@ -548,62 +555,88 @@ export default function TVPage() {
           </div>
         </section>
 
-        {/* COLUMN 3: Top Performers / Hall of Fame */}
+        {/* COLUMN 3: Program-Wise Champion / Lead (Rotates every 30s) */}
         <section className="tv-column tv-performers-col">
           <div className="tv-col-header">
             <div className="tv-col-title-wrap">
-              <i className="fas fa-trophy tv-col-icon"></i>
-              <h2>{view === 'today' ? "TODAY'S CHAMPIONS" : '7-DAY MASTERS'}</h2>
+              <i className="fas fa-crown tv-col-icon" style={{ color: '#f59e0b' }}></i>
+              <h2>{currentProgChamp ? getCleanProgramName(currentProgChamp.program_name) : 'PROGRAM'} LEAD</h2>
             </div>
-            <span className="tv-rot-badge">{view === 'today' ? 'TODAY' : '7 DAYS'}</span>
+            <span className="tv-rot-badge" title="Rotates program-wise champion every 30 seconds">
+              <i className="fas fa-rotate fa-spin-pulse"></i> 30s · {((progChampIndex % Math.max(1, programChampions.length)) + 1)}/{programChampions.length || 1}
+            </span>
           </div>
 
-          {/* Spotlight on #1 Counselor */}
-          {topPerformer && (
-            <div className="tv-top-spotlight">
-              <div className="spotlight-crown"><i className="fas fa-crown"></i> #1 TOP PERFORMER</div>
-              <div className="spotlight-body">
-                <Avatar p={topPerformer} size="4.6em" />
-                <div className="spotlight-info">
-                  <div className="spotlight-name">{topPerformer.name}</div>
-                  <div className="spotlight-prog" title={topPerformer.program}>
-                    <i className="fas fa-building"></i> {getCleanProgramName(topPerformer.program)}
-                  </div>
-                  <div className="spotlight-conversion">
-                    <i className="fas fa-bullseye"></i> {topPerformer.conversion}% Conversion Rate
-                  </div>
-                </div>
-                <div className="spotlight-sales">
-                  <span className="spotlight-num">{topPerformer.sales}</span>
-                  <span className="spotlight-lbl">SALES</span>
-                </div>
+          {/* Program Batch Target & Progress Strip */}
+          {currentProgChamp && (
+            <div className="tv-prog-champ-batch-strip">
+              <div className="strip-left">
+                <i className="fas fa-layer-group text-primary"></i>
+                <span className="strip-batch-name">{currentProgChamp.batch_name || 'Active Batch'}</span>
+              </div>
+              <div className="strip-right">
+                <span className="strip-target">
+                  Batch: <b>{currentProgChamp.batch_sales || 0}</b> / {currentProgChamp.batch_target || 0} Sales
+                </span>
+                <span className="strip-pct">
+                  ({Math.round(((currentProgChamp.batch_sales || 0) / (currentProgChamp.batch_target || 1)) * 100)}%)
+                </span>
               </div>
             </div>
           )}
 
+          {/* Spotlight on #1 Lead of This Program */}
+          {currentProgChamp?.top_performer ? (
+            <div className="tv-top-spotlight">
+              <div className="spotlight-crown">
+                <i className="fas fa-trophy"></i> #1 PROGRAM LEAD · {getCleanProgramName(currentProgChamp.program_name)}
+              </div>
+              <div className="spotlight-body">
+                <Avatar p={currentProgChamp.top_performer} size="4.4em" />
+                <div className="spotlight-info">
+                  <div className="spotlight-name">{currentProgChamp.top_performer.name}</div>
+                  <div className="spotlight-prog" title={currentProgChamp.top_performer.program}>
+                    <i className="fas fa-building"></i> {getCleanProgramName(currentProgChamp.top_performer.program)}
+                  </div>
+                  <div className="spotlight-conversion">
+                    <i className="fas fa-bullseye"></i> {currentProgChamp.top_performer.conversion}% Conversion Rate
+                  </div>
+                </div>
+                <div className="spotlight-sales">
+                  <span className="spotlight-num">{currentProgChamp.top_performer.sales}</span>
+                  <span className="spotlight-lbl">SALES</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="tv-empty-card" style={{ padding: '1.2em 0.8em', marginBottom: '0.45em' }}>
+              <i className="fas fa-medal" style={{ fontSize: '1.8em', color: '#f59e0b', marginBottom: '0.25em' }}></i>
+              <p style={{ fontWeight: 800, margin: 0 }}>Be the first to score in {currentProgChamp?.program_name || 'this program'}!</p>
+              <span className="muted" style={{ fontSize: '0.85em' }}>Batch: {currentProgChamp?.batch_name} (Target: {currentProgChamp?.batch_target || 0}) · First sale wins the crown!</span>
+            </div>
+          )}
+
+          {/* Program Counselor Leaderboard */}
           <div className="tv-champions-list">
-            {leaders.length === 0 ? (
+            {!currentProgChamp?.leaders || currentProgChamp.leaders.length <= 1 ? (
               <div className="tv-empty-card">
-                <p>No sales recorded yet</p>
-                <span className="muted">The first sale will take the #1 crown!</span>
+                <p>Waiting for more sales in {currentProgChamp?.program_name || 'program'}…</p>
+                <span className="muted">Next sale enters the leaderboard</span>
               </div>
             ) : (
-              leaders.slice(topPerformer ? 1 : 0, topPerformer ? 7 : 8).map((l, idx) => {
-                const rankNum = (topPerformer ? 2 : 1) + idx;
-                return (
-                  <div key={l.id} className="tv-leader-row">
-                    <div className="tv-leader-rank">#{rankNum}</div>
-                    <Avatar p={l} size="2.6em" />
-                    <div className="tv-leader-info">
-                      <div className="tv-leader-name">{l.name}</div>
-                      <div className="tv-leader-prog" title={l.program}>
-                        {getCleanProgramName(l.program)} · {l.conversion}% conv
-                      </div>
+              currentProgChamp.leaders.slice(1, 7).map((l, idx) => (
+                <div key={l.id} className="tv-leader-row">
+                  <div className="tv-leader-rank">#{idx + 2}</div>
+                  <Avatar p={l} size="2.4em" />
+                  <div className="tv-leader-info">
+                    <div className="tv-leader-name">{l.name}</div>
+                    <div className="tv-leader-prog">
+                      {l.conversion}% conv · {currentProgChamp.batch_name}
                     </div>
-                    <div className="tv-leader-sales">{l.sales}</div>
                   </div>
-                );
-              })
+                  <div className="tv-leader-sales">{l.sales}</div>
+                </div>
+              ))
             )}
           </div>
         </section>
@@ -642,10 +675,10 @@ export default function TVPage() {
                 <div className="fp-head">
                   <div className="fp-title-wrap">
                     <span className="fp-name" title={p.name}>{p.name}</span>
-                    <span className="fp-target-badge"><i className="fas fa-bullseye"></i> Target: {p.daily_target}</span>
+                    <span className="fp-target-badge"><i className="fas fa-layer-group"></i> {p.batch_name || 'Batch'}: {p.batch_target || p.daily_target}</span>
                   </div>
                   <div className="fp-sales-pill">
-                    <i className="fas fa-check-circle"></i> <b>{p.sales || 0}</b> Sales
+                    <i className="fas fa-check-circle"></i> <b>{p.batch_sales || p.sales || 0}</b> Sales
                   </div>
                 </div>
                 <div className="fp-metrics-grid">

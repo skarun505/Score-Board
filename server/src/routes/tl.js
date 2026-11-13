@@ -14,10 +14,159 @@ const refresh = (req) => {
 
 /**
  * GET /api/tl/programs
- * List active programs for counselor assignment
+ * List active programs with active batch and target for assignment and management
  */
 router.get('/programs', (req, res) => {
-  res.json(db.prepare('SELECT id, name, daily_target FROM programs WHERE active = 1 ORDER BY name').all());
+  const rows = db.prepare(`
+    SELECT p.id, p.name, p.daily_target,
+           b.id AS batch_id, b.name AS batch_name, b.target AS batch_target, b.active AS batch_active
+    FROM programs p
+    LEFT JOIN batches b ON b.program_id = p.id AND b.active = 1
+    WHERE p.active = 1
+    ORDER BY p.name
+  `).all();
+  res.json(rows);
+});
+
+/**
+ * GET /api/tl/batches
+ * List batches across programs with sales count
+ */
+router.get('/batches', (req, res) => {
+  const rows = db.prepare(`
+    SELECT b.id, b.name, b.program_id, b.target, b.active, b.start_date, b.end_date, b.created_at,
+           p.name AS program_name,
+           (SELECT COUNT(*) FROM events e JOIN statuses s ON s.id = e.status_id
+            WHERE e.program_id = b.program_id AND e.voided = 0 AND s.is_sale = 1
+              AND (e.batch_id = b.id OR e.created_at >= b.start_date)) AS sales
+    FROM batches b
+    JOIN programs p ON p.id = b.program_id
+    ORDER BY b.active DESC, p.name ASC, b.id DESC
+  `).all();
+  res.json(rows);
+});
+
+/**
+ * POST /api/tl/batches
+ * Create a new batch for a program and set as active
+ */
+router.post('/batches', (req, res) => {
+  const { program_id, name, target, set_active = true } = req.body || {};
+  if (!program_id) return res.status(400).json({ error: 'Program is required.' });
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Batch name is required.' });
+  const batchTarget = Number(target);
+  if (isNaN(batchTarget) || batchTarget < 0) {
+    return res.status(400).json({ error: 'Target must be a non-negative number.' });
+  }
+
+  const prog = db.prepare('SELECT id, name FROM programs WHERE id = ?').get(program_id);
+  if (!prog) return res.status(404).json({ error: 'Program not found.' });
+
+  const today = businessDate();
+  const nowIso = new Date().toISOString();
+
+  if (set_active) {
+    db.prepare('UPDATE batches SET active = 0 WHERE program_id = ?').run(program_id);
+    db.prepare('UPDATE programs SET daily_target = ? WHERE id = ?').run(batchTarget, program_id);
+  }
+
+  const r = db.prepare(`
+    INSERT INTO batches (name, program_id, target, active, start_date, created_by, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(name.trim(), program_id, batchTarget, set_active ? 1 : 0, today, req.user.id, nowIso);
+
+  audit(req.user.id, 'batch.create', 'batch', r.lastInsertRowid, {
+    program: prog.name,
+    name: name.trim(),
+    target: batchTarget,
+    active: !!set_active,
+  });
+
+  refresh(req);
+
+  res.status(201).json({
+    ok: true,
+    batch_id: Number(r.lastInsertRowid),
+    message: `Batch "${name.trim()}" for ${prog.name} created successfully with target of ${batchTarget} sales.`,
+  });
+});
+
+/**
+ * PUT /api/tl/batches/:id
+ * Update batch target or activate batch
+ */
+router.put('/batches/:id', (req, res) => {
+  const batchId = Number(req.params.id);
+  const { target, name, active } = req.body || {};
+
+  const b = db.prepare('SELECT * FROM batches WHERE id = ?').get(batchId);
+  if (!b) return res.status(404).json({ error: 'Batch not found.' });
+
+  const newTarget = target !== undefined ? Number(target) : b.target;
+  const newName = name !== undefined ? name.trim() : b.name;
+  const newActive = active !== undefined ? (active ? 1 : 0) : b.active;
+
+  if (newActive === 1 && b.active !== 1) {
+    db.prepare('UPDATE batches SET active = 0 WHERE program_id = ?').run(b.program_id);
+  }
+
+  db.prepare(`
+    UPDATE batches
+    SET target = ?, name = ?, active = ?
+    WHERE id = ?
+  `).run(newTarget, newName, newActive, batchId);
+
+  if (newActive === 1) {
+    db.prepare('UPDATE programs SET daily_target = ? WHERE id = ?').run(newTarget, b.program_id);
+  }
+
+  audit(req.user.id, 'batch.update', 'batch', batchId, { target: newTarget, name: newName, active: newActive });
+  refresh(req);
+
+  res.json({
+    ok: true,
+    message: `Batch "${newName}" updated successfully.`,
+  });
+});
+
+/**
+ * POST /api/tl/programs/:id/batch-target
+ * Quick-set target for program's active batch
+ */
+router.post('/programs/:id/batch-target', (req, res) => {
+  const progId = Number(req.params.id);
+  const { target, batch_name } = req.body || {};
+  const newTarget = Number(target);
+  if (isNaN(newTarget) || newTarget < 0) {
+    return res.status(400).json({ error: 'Target must be a valid number.' });
+  }
+
+  const prog = db.prepare('SELECT id, name FROM programs WHERE id = ?').get(progId);
+  if (!prog) return res.status(404).json({ error: 'Program not found.' });
+
+  let activeBatch = db.prepare('SELECT * FROM batches WHERE program_id = ? AND active = 1').get(progId);
+  const nowIso = new Date().toISOString();
+  const today = businessDate();
+
+  if (activeBatch) {
+    db.prepare('UPDATE batches SET target = ?, name = COALESCE(?, name) WHERE id = ?')
+      .run(newTarget, batch_name ? batch_name.trim() : null, activeBatch.id);
+  } else {
+    const r = db.prepare(`
+      INSERT INTO batches (name, program_id, target, active, start_date, created_by, created_at)
+      VALUES (?, ?, ?, 1, ?, ?, ?)
+    `).run(batch_name ? batch_name.trim() : 'Batch 1', progId, newTarget, today, req.user.id, nowIso);
+    activeBatch = { id: Number(r.lastInsertRowid), name: batch_name || 'Batch 1' };
+  }
+
+  db.prepare('UPDATE programs SET daily_target = ? WHERE id = ?').run(newTarget, progId);
+  audit(req.user.id, 'program.target_set', 'program', progId, { target: newTarget });
+  refresh(req);
+
+  res.json({
+    ok: true,
+    message: `Target for ${prog.name} (${activeBatch.name}) updated to ${newTarget} sales.`,
+  });
 });
 
 /**

@@ -22,11 +22,24 @@ function countSales(date, programId) {
 function detectMilestone(programId) {
   const today = businessDate();
   const orgSales = countSales(today);
-  const progSales = countSales(today, programId);
   const prog = db.prepare('SELECT * FROM programs WHERE id = ?').get(programId);
+  const activeBatch = db.prepare('SELECT id, name, target, start_date FROM batches WHERE program_id = ? AND active = 1').get(programId);
+  const target = activeBatch?.target ?? prog?.daily_target ?? 0;
+
+  let batchSales = 0;
+  if (activeBatch) {
+    const r = db.prepare(`
+      SELECT COUNT(*) AS n FROM events e JOIN statuses s ON s.id = e.status_id
+      WHERE e.program_id = ? AND e.voided = 0 AND s.is_sale = 1 AND (e.batch_id = ? OR e.created_at >= ?)
+    `).get(programId, activeBatch.id, activeBatch.start_date || '2000-01-01');
+    batchSales = r?.n || 0;
+  } else {
+    batchSales = countSales(today, programId);
+  }
+
   if (orgSales === 1) return { type: 'first_sale', label: 'First sale of the day!' };
-  if (prog && prog.daily_target > 0 && progSales === prog.daily_target) {
-    return { type: 'target_hit', label: `${prog.name} hit its target!` };
+  if (target > 0 && batchSales === target) {
+    return { type: 'target_hit', label: `${prog?.name} hit its target (${target})!` };
   }
   if (MILESTONE_EVERY > 0 && orgSales % MILESTONE_EVERY === 0) {
     return { type: 'org_milestone', label: `${orgSales} sales today!` };
@@ -80,11 +93,14 @@ export function recordEvent({ actor, telecallerId, statusCode, leadRef, confirmD
     }
   }
 
+  const activeBatch = db.prepare('SELECT id, name, target FROM batches WHERE program_id = ? AND active = 1').get(tc.program_id);
+  const batchId = activeBatch?.id || null;
+
   const now = new Date();
   const info = db.prepare(`
-    INSERT INTO events (telecaller_id, program_id, tl_id, status_id, lead_ref, created_by, created_at, business_date)
-    VALUES (?,?,?,?,?,?,?,?)`
-  ).run(tc.id, tc.program_id, tc.tl_id, st.id, leadRef || null, actor.id, now.toISOString(), businessDate(now));
+    INSERT INTO events (telecaller_id, program_id, tl_id, status_id, lead_ref, created_by, created_at, business_date, batch_id)
+    VALUES (?,?,?,?,?,?,?,?,?)`
+  ).run(tc.id, tc.program_id, tc.tl_id, st.id, leadRef || null, actor.id, now.toISOString(), businessDate(now), batchId);
   const id = Number(info.lastInsertRowid);
   audit(actor.id, 'event.create', 'event', id, { telecaller: tc.name, status: st.code });
 
