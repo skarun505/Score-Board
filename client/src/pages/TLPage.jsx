@@ -904,7 +904,7 @@ function BatchManagementModal({ token, programs, onDone, onClose }) {
           <button className="modal-close-btn" onClick={onClose}>×</button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.8rem 0' }}>
+        <div className="tl-batch-modal-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.8rem 0', gap: '0.6rem' }}>
           <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
             Configure batch-wise targets for each program and create new cohorts. Changes reflect live on 108" TV immediately.
           </p>
@@ -1002,21 +1002,11 @@ function BatchManagementModal({ token, programs, onDone, onClose }) {
               const isEditing = editingProgId === p.id;
 
               return (
-                <div key={p.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.75rem 1rem',
-                  background: '#ffffff',
-                  border: '1.5px solid #e2e8f0',
-                  borderRadius: '0.85rem',
-                  gap: '1rem',
-                  flexWrap: 'wrap',
-                }}>
-                  <div style={{ minWidth: '160px', flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a' }}>{p.name}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
-                      <span className="pill blue" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
+                <div key={p.id} className="tl-batch-prog-card">
+                  <div className="tl-batch-prog-info">
+                    <div className="tl-batch-prog-title">{p.name}</div>
+                    <div className="tl-batch-prog-meta">
+                      <span className="pill blue">
                         <i className="fas fa-layer-group"></i> {activeB?.name || 'Batch 1'}
                       </span>
                       <span>· Started {activeB?.start_date || 'Today'}</span>
@@ -1024,23 +1014,23 @@ function BatchManagementModal({ token, programs, onDone, onClose }) {
                   </div>
 
                   {/* Target & Sales progress */}
-                  <div style={{ minWidth: '200px', flex: 1.5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                  <div className="tl-batch-prog-progress">
+                    <div className="tl-batch-prog-progress-labels">
                       <span>Batch Sales: <b>{bSales}</b> / {bTarget}</span>
-                      <span style={{ fontWeight: 800, color: '#059669' }}>{pct}%</span>
+                      <span className="tl-batch-prog-pct">{pct}%</span>
                     </div>
-                    <div style={{ height: '0.55rem', background: '#e2e8f0', borderRadius: '1rem', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '1rem' }} />
+                    <div className="tl-batch-progress-track">
+                      <div className="tl-batch-progress-fill" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
 
                   {/* Target Edit & Actions */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="tl-batch-prog-actions">
                     {isEditing ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <div className="tl-batch-edit-row">
                         <input
                           type="number"
-                          style={{ width: '80px', padding: '0.35rem 0.5rem', borderRadius: '0.5rem', border: '1.5px solid #2563eb', fontSize: '0.9rem' }}
+                          className="tl-batch-target-input"
                           value={editTargetValue}
                           onChange={(e) => setEditTargetValue(e.target.value)}
                           autoFocus
@@ -1048,7 +1038,6 @@ function BatchManagementModal({ token, programs, onDone, onClose }) {
                         <button
                           type="button"
                           className="btn-primary"
-                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
                           onClick={() => handleQuickTargetSave(p.id)}
                           disabled={saving}
                         >
@@ -1057,7 +1046,6 @@ function BatchManagementModal({ token, programs, onDone, onClose }) {
                         <button
                           type="button"
                           className="btn-secondary"
-                          style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                           onClick={() => setEditingProgId(null)}
                         >
                           ✕
@@ -1066,8 +1054,7 @@ function BatchManagementModal({ token, programs, onDone, onClose }) {
                     ) : (
                       <button
                         type="button"
-                        className="btn-secondary"
-                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                        className="btn-secondary tl-btn-edit-target"
                         onClick={() => {
                           setEditingProgId(p.id);
                           setEditTargetValue(String(bTarget));
@@ -1671,25 +1658,26 @@ export default function TLPage() {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button
-                  className="tl-btn-action-pill count"
-                  onClick={() => { const s = selected; setSelected(null); setCustomCountCounselor(s); }}
-                  title="Set bulk/custom count"
-                >
-                  <i className="fas fa-calculator" /> Custom Count
-                </button>
-                <button
-                  className="tl-btn-action-pill edit"
-                  onClick={() => { const s = selected; setSelected(null); setEditCounselor(s); }}
-                  title="Edit details"
-                >
-                  <i className="fas fa-pencil" /> Edit
-                </button>
-                <button className="tl-sheet-close-btn" onClick={() => { setSelected(null); setLeadRef(''); }}>
-                  <i className="fas fa-xmark"></i>
-                </button>
-              </div>
+              <button className="tl-sheet-close-btn" onClick={() => { setSelected(null); setLeadRef(''); }}>
+                <i className="fas fa-xmark"></i>
+              </button>
+            </div>
+
+            <div className="tl-sheet-actions-bar">
+              <button
+                className="tl-btn-action-pill count"
+                onClick={() => { const s = selected; setSelected(null); setCustomCountCounselor(s); }}
+                title="Set bulk/custom count"
+              >
+                <i className="fas fa-calculator" /> Custom Count
+              </button>
+              <button
+                className="tl-btn-action-pill edit"
+                onClick={() => { const s = selected; setSelected(null); setEditCounselor(s); }}
+                title="Edit details"
+              >
+                <i className="fas fa-pencil" /> Edit Details
+              </button>
             </div>
 
             <div className="tl-sheet-input-wrap">
