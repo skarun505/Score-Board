@@ -46,6 +46,7 @@ export default function AdminPage() {
   const [powerHour, setPowerHour] = useState(false);
   const [systemHealth, setSystemHealth] = useState(null);
   const [remoteStatus, setRemoteStatus] = useState('');
+  const [restoreStatus, setRestoreStatus] = useState(null);
 
   // Quick Sale by Admin state
   const [quickTcId, setQuickTcId] = useState('');
@@ -220,6 +221,7 @@ export default function AdminPage() {
     );
     if (!confirmed) return;
 
+    setRestoreStatus({ loading: true, msg: 'Restoring backup data, please wait…' });
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -228,10 +230,12 @@ export default function AdminPage() {
         token,
         body: { data: parsed },
       });
-      alert(res.message || 'Backup restored successfully!');
+      setRestoreStatus({ success: true, msg: res.message || 'Backup restored successfully!' });
       fetchAll();
+      fetchSystemHealth();
+      setTimeout(() => setRestoreStatus(null), 10000);
     } catch (err) {
-      alert(`Restore failed: ${err.message || 'Invalid JSON backup file'}`);
+      setRestoreStatus({ error: true, msg: `Restore failed: ${err.message || 'Invalid JSON backup file'}` });
     }
   }
 
@@ -426,7 +430,7 @@ export default function AdminPage() {
           { id: 'settings', label: 'SETTINGS' },
           { id: 'entries', label: 'ENTRIES' },
           { id: 'audit', label: 'AUDIT LOG' },
-          { id: 'export', label: 'EXPORT' },
+          { id: 'export', label: '💾 BACKUP & EXPORT' },
         ].map((t) => (
           <button
             key={t.id}
@@ -1237,38 +1241,169 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* EXPORT CSV TAB */}
+        {/* BACKUP & EXPORT TAB */}
         {tab === 'export' && (
-          <div className="admin-card">
-            <h2>Download Raw Event Data</h2>
-            <p className="muted">Export complete audit records and sales counts into standard CSV format.</p>
-            <div className="form-row">
-              <div className="form-group">
-                <label>From Date (IST)</label>
-                <input
-                  type="date"
-                  value={exportFrom}
-                  onChange={(e) => setExportFrom(e.target.value)}
-                />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            {/* Database Backup & Instant Restore (Option 3) Card */}
+            <div className="admin-card" style={{ border: '2px solid #3b82f6', background: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                <i className="fas fa-shield-halved" style={{ fontSize: '1.5rem', color: '#2563eb' }}></i>
+                <h2 style={{ margin: 0, color: '#0f172a' }}>Database Backup & Instant Restore</h2>
               </div>
-              <div className="form-group">
-                <label>To Date (IST)</label>
-                <input
-                  type="date"
-                  value={exportTo}
-                  onChange={(e) => setExportTo(e.target.value)}
-                />
+              <p className="muted" style={{ fontSize: '0.92rem', marginBottom: '1rem' }}>
+                Use this to keep all your sales closures, batch targets, and counselor inputs safe when software updates are deployed to Render.
+              </p>
+
+              {restoreStatus && (
+                <div style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '0.75rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  background: restoreStatus.loading ? '#eff6ff' : restoreStatus.success ? '#ecfdf5' : '#fef2f2',
+                  color: restoreStatus.loading ? '#1d4ed8' : restoreStatus.success ? '#047857' : '#b91c1c',
+                  border: `1.5px solid ${restoreStatus.loading ? '#93c5fd' : restoreStatus.success ? '#6ee7b7' : '#fca5a5'}`,
+                }}>
+                  <i className={`fas ${restoreStatus.loading ? 'fa-spinner fa-spin' : restoreStatus.success ? 'fa-circle-check' : 'fa-circle-exclamation'}`}></i>
+                  <span>{restoreStatus.msg}</span>
+                </div>
+              )}
+
+              {/* 3 Step Instruction Box */}
+              <div style={{
+                background: '#ffffff',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '0.85rem',
+                padding: '0.9rem 1.1rem',
+                marginBottom: '1.2rem',
+              }}>
+                <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#334155', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <i className="fas fa-lightbulb text-amber"></i> How to use before making software updates:
+                </div>
+                <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem', color: '#475569', lineHeight: 1.6 }}>
+                  <li>Click <b>"Export JSON Backup"</b> below to download your latest data file to your computer.</li>
+                  <li>Deploy your changes to Render.</li>
+                  <li>Return to this page, click <b>"Restore from JSON Backup"</b>, and select the file. All sales, batches, and counselors are restored immediately!</li>
+                </ol>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={exportJsonBackup}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.55rem',
+                    padding: '0.85rem 1.2rem',
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    borderRadius: '0.75rem',
+                    background: 'linear-gradient(135deg, #059669, #047857)',
+                    borderColor: '#047857',
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+                  }}
+                  title="Export complete database into a portable JSON backup file"
+                >
+                  <i className="fas fa-file-export" style={{ fontSize: '1.1rem' }}></i>
+                  <span>1. Export JSON Backup</span>
+                </button>
+
+                <label
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.55rem',
+                    padding: '0.85rem 1.2rem',
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    borderRadius: '0.75rem',
+                    cursor: 'pointer',
+                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                    color: '#ffffff',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                    margin: 0,
+                  }}
+                  title="Upload a previously exported JSON backup to restore all records"
+                >
+                  <i className="fas fa-file-import" style={{ fontSize: '1.1rem' }}></i>
+                  <span>2. Restore from JSON Backup</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleRestoreFile(f);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={downloadBackup}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.85rem 1.2rem',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    borderRadius: '0.75rem',
+                  }}
+                  title="Download raw SQLite database file (.db)"
+                >
+                  <i className="fas fa-database"></i>
+                  <span>Download Raw .db</span>
+                </button>
               </div>
             </div>
-            <a
-              href={`/api/admin/export.csv?from=${exportFrom}&to=${exportTo}`}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary"
-              style={{ display: 'inline-block', marginTop: '1rem' }}
-            >
-              <i className="fas fa-file-download"></i> Download CSV Export
-            </a>
+
+            {/* CSV Event Logs Export Card */}
+            <div className="admin-card">
+              <h2>Download Raw Event Data (CSV)</h2>
+              <p className="muted">Export complete audit records and sales counts into standard CSV format for Excel.</p>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>From Date (IST)</label>
+                  <input
+                    type="date"
+                    value={exportFrom}
+                    onChange={(e) => setExportFrom(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>To Date (IST)</label>
+                  <input
+                    type="date"
+                    value={exportTo}
+                    onChange={(e) => setExportTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <a
+                href={`/api/admin/export.csv?from=${exportFrom}&to=${exportTo}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-secondary"
+                style={{ display: 'inline-block', marginTop: '0.5rem' }}
+              >
+                <i className="fas fa-file-csv"></i> Download CSV Export
+              </a>
+            </div>
           </div>
         )}
       </main>
