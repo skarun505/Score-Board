@@ -300,7 +300,7 @@ function CounselorLogin({ onLogin }) {
 }
 
 /* ─── Counselor Custom Count & 1-Time Daily Rechange Modal ─── */
-function CounselorCustomCountModal({ token, initialStatus, currentCount, onDone, onClose }) {
+function CounselorCustomCountModal({ token, initialStatus, currentCount, stats, onDone, onClose }) {
   const [statusCode, setStatusCode] = useState(initialStatus || 'sale_closed');
   const [count, setCount] = useState(currentCount || 0);
   const [busy, setBusy] = useState(false);
@@ -317,13 +317,27 @@ function CounselorCustomCountModal({ token, initialStatus, currentCount, onDone,
 
   const currentOpt = statusOptions.find((s) => s.code === statusCode);
 
+  function selectStatus(code) {
+    setStatusCode(code);
+    setErr('');
+    setSuccess('');
+    if (stats) {
+      const current = code === 'sale_closed' ? (stats.sales_today || 0) :
+                      code === 'l1_selected' ? (stats.l1_today || 0) :
+                      code === 'l2_selected' ? (stats.l2_today || 0) :
+                      code === 'interested' ? (stats.interested_today || 0) :
+                      code === 'follow_up' ? (stats.followup_today || 0) : 0;
+      setCount(current);
+    }
+  }
+
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setErr('');
     setSuccess('');
     try {
-      const res = await api('/api/events/counselor/custom-count', {
+      const res = await api('/api/counselor/custom-count', {
         method: 'POST',
         token,
         body: { status_code: statusCode, count: Number(count) },
@@ -354,7 +368,7 @@ function CounselorCustomCountModal({ token, initialStatus, currentCount, onDone,
               type="button"
               className={`status-chip-btn ${statusCode === opt.code ? 'active' : ''}`}
               style={{ '--chip-color': opt.color }}
-              onClick={() => { setStatusCode(opt.code); setErr(''); setSuccess(''); }}
+              onClick={() => selectStatus(opt.code)}
             >
               <i className={`fas ${opt.icon}`}></i>
               <span>{opt.label}</span>
@@ -783,6 +797,7 @@ export default function CounselorPage() {
           token={token}
           initialStatus={customCountModal.status}
           currentCount={customCountModal.count}
+          stats={stats}
           onDone={() => { setCustomCountModal(null); loadData(); }}
           onClose={() => setCustomCountModal(null)}
         />

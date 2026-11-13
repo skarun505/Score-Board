@@ -145,12 +145,14 @@ router.post('/events/:id/undo', requireAuth(['tl', 'admin', 'telecaller']), (req
 });
 
 /**
- * POST /api/events/counselor/custom-count
+ * POST /api/counselor/custom-count & /api/events/counselor/custom-count
  * Counselor sets custom count for their own status with 1-time daily rechange safeguard
  */
-router.post('/counselor/custom-count', requireAuth(['telecaller', 'tl', 'admin']), (req, res) => {
-  const counselorId = req.user.id;
-  const tc = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'telecaller' AND active = 1").get(counselorId);
+router.post(['/counselor/custom-count', '/events/counselor/custom-count'], requireAuth(['telecaller', 'tl', 'admin']), (req, res) => {
+  const counselorId = (req.user.role === 'admin' || req.user.role === 'tl') && req.body.telecaller_id
+    ? Number(req.body.telecaller_id)
+    : req.user.id;
+  const tc = db.prepare("SELECT * FROM users WHERE id = ? AND active = 1").get(counselorId);
   if (!tc) return res.status(404).json({ error: 'Counselor not found.' });
 
   const { status_code, count } = req.body || {};
@@ -201,7 +203,7 @@ router.post('/counselor/custom-count', requireAuth(['telecaller', 'tl', 'admin']
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (let i = 0; i < toAdd; i++) {
-      ins.run(tc.id, tc.program_id, tc.tl_id, st.id, `Counselor custom count (${i + 1}/${toAdd})`, req.user.id, nowIso, today);
+      ins.run(tc.id, tc.program_id || 1, tc.tl_id || null, st.id, `Counselor custom count (${i + 1}/${toAdd})`, req.user.id, nowIso, today);
     }
   } else if (newCount < currentCount) {
     const toVoid = currentCount - newCount;

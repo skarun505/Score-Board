@@ -223,6 +223,41 @@ describe('Live Sales Dashboard Server Tests', () => {
     assert.equal(resMe.body.stats.active_callers_today, 1);
   });
 
+  test('10. Counselor custom count sets count and enforces 1-time safeguard', async () => {
+    db.prepare('DELETE FROM daily_adjustments').run();
+
+    // Set custom count for L1 Selected to 3 via /api/counselor/custom-count
+    const res1 = await request(app)
+      .post('/api/counselor/custom-count')
+      .set('Authorization', `Bearer ${tc1Token}`)
+      .send({ status_code: 'l1_selected', count: 3 });
+
+    assert.equal(res1.status, 200);
+    assert.equal(res1.body.new_count, 3);
+
+    const l1Status = db.prepare("SELECT id FROM statuses WHERE code = 'l1_selected'").get();
+    const countEvents = db.prepare("SELECT COUNT(*) AS cnt FROM events WHERE telecaller_id = ? AND status_id = ? AND voided = 0").get(tc1.id, l1Status.id);
+    assert.equal(countEvents.cnt, 3);
+
+    // Verify second attempt by same counselor triggers 1-time daily safeguard (HTTP 400)
+    const res2 = await request(app)
+      .post('/api/counselor/custom-count')
+      .set('Authorization', `Bearer ${tc1Token}`)
+      .send({ status_code: 'l1_selected', count: 5 });
+
+    assert.equal(res2.status, 400);
+    assert.equal(res2.body.code, 'DAILY_RECHANGE_LIMIT_REACHED');
+
+    // Also verify /api/events/counselor/custom-count works for a different status
+    const res3 = await request(app)
+      .post('/api/events/counselor/custom-count')
+      .set('Authorization', `Bearer ${tc1Token}`)
+      .send({ status_code: 'interested', count: 2 });
+
+    assert.equal(res3.status, 200);
+    assert.equal(res3.body.new_count, 2);
+  });
+
   after(() => {
     if (server.listening) server.close();
   });
