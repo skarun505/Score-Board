@@ -88,6 +88,11 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/tl', tlRoutes);
 app.use('/api', eventRoutes);
 
+/* Explicit JSON 404 handler for any unhandled /api/* routes */
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `API route ${req.method} ${req.originalUrl} not found` });
+});
+
 /* Serve the built React app */
 const dist = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(dist));

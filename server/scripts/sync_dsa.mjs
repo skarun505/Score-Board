@@ -24,7 +24,7 @@ export const officialProgramRoster = [
     ],
   },
   {
-    name: 'Operation',
+    name: 'Axis Ops',
     dailyTarget: 4,
     tlCode: 'TL001',
     counselors: [
@@ -62,7 +62,7 @@ export const officialProgramRoster = [
   },
   // Team: Sowmya Nagaraj (TL002) - 12 Counselors
   {
-    name: 'ABRL / Ops',
+    name: 'Axis Retail Lending / Axis Ops',
     dailyTarget: 6,
     tlCode: 'TL002',
     counselors: [
@@ -186,6 +186,12 @@ export const officialProgramRoster = [
 export function runSync() {
   console.log('--- Syncing DSA.xlsx Program & Counselor Roster ---');
 
+  // Migrate legacy program names to official expanded names:
+  // ABRL / Ops -> Axis Retail Lending / Axis Ops
+  // Operation -> Axis Ops
+  const oldAbrl = db.prepare("SELECT id FROM programs WHERE name = 'ABRL / Ops'").get();
+  const oldOp = db.prepare("SELECT id FROM programs WHERE name = 'Operation'").get();
+
   // 1. Upsert Programs
   const progMap = {};
   for (const p of officialProgramRoster) {
@@ -206,13 +212,27 @@ export function runSync() {
     progMap[p.name] = pid;
   }
 
+  // Safely migrate any historical events and users from legacy names
+  if (oldAbrl && progMap['Axis Retail Lending / Axis Ops']) {
+    const newPid = progMap['Axis Retail Lending / Axis Ops'];
+    db.prepare('UPDATE events SET program_id = ? WHERE program_id = ?').run(newPid, oldAbrl.id);
+    db.prepare('UPDATE users SET program_id = ? WHERE program_id = ?').run(newPid, oldAbrl.id);
+    db.prepare('UPDATE programs SET active = 0 WHERE id = ?').run(oldAbrl.id);
+  }
+  if (oldOp && progMap['Axis Ops']) {
+    const newPid = progMap['Axis Ops'];
+    db.prepare('UPDATE events SET program_id = ? WHERE program_id = ?').run(newPid, oldOp.id);
+    db.prepare('UPDATE users SET program_id = ? WHERE program_id = ?').run(newPid, oldOp.id);
+    db.prepare('UPDATE programs SET active = 0 WHERE id = ?').run(oldOp.id);
+  }
+
   // 2. Ensure Team Leaders exist and point to valid primary programs
   const tlMap = {};
   for (const tl of officialTLs) {
     let existing = db.prepare('SELECT id FROM users WHERE employee_code = ?').get(tl.code);
     let tlId;
     const primaryProgId = tl.code === 'TL001' ? progMap['HDFC Life']
-      : tl.code === 'TL002' ? progMap['ABRL / Ops']
+      : tl.code === 'TL002' ? progMap['Axis Retail Lending / Axis Ops']
       : tl.code === 'TL003' ? progMap['Kotak Ops']
       : progMap['ABYBP'];
 

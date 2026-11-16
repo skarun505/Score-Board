@@ -54,7 +54,7 @@ if (!db.prepare('SELECT 1 FROM users WHERE employee_code = ?').get(adminCode)) {
 }
 
 /* Check if DSA.xlsx roster is already applied */
-const dsaCheck = db.prepare("SELECT 1 FROM programs WHERE name = 'ABRL / Ops' AND active = 1").get();
+const dsaCheck = db.prepare("SELECT 1 FROM programs WHERE name IN ('Axis Retail Lending / Axis Ops', 'ABRL / Ops') AND active = 1").get();
 if (dsaCheck) {
   const existingTeamCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('tl', 'telecaller')").get()?.c || 0;
   if (existingTeamCount >= 47) {
@@ -66,8 +66,8 @@ if (dsaCheck) {
 
 /* Official Programs, Team Leaders, and Counselors from DSA.xlsx:
    4 Team Leaders:
-   1. Tanmay Makhija (TL001) -> 5 Programs (HDFC Life, Operation, ABC, TATA AIG, Care) - 13 Counselors
-   2. Sowmya Nagaraj (TL002) -> 5 Programs (ABRL / Ops, IDFC, Grihum, DCB, Mahindra) - 12 Counselors
+   1. Tanmay Makhija (TL001) -> 5 Programs (HDFC Life, Axis Ops, ABC, TATA AIG, Care) - 13 Counselors
+   2. Sowmya Nagaraj (TL002) -> 5 Programs (Axis Retail Lending / Axis Ops, IDFC, Grihum, DCB, Mahindra) - 12 Counselors
    3. Saniya Farheen (TL003) -> 4 Programs (Kotak Sky, Kotak Ops, Kotak Next Gen, Kotak Ops / Sky) - 10 Counselors
    4. Monjil Kakoti (TL004) -> 3 Programs (ABYBP, Bandhan, ABYBP / Bandhan) - 12 Counselors
 
@@ -94,7 +94,7 @@ export const officialProgramRoster = [
     ],
   },
   {
-    name: 'Operation',
+    name: 'Axis Ops',
     dailyTarget: 4,
     tlCode: 'TL001',
     counselors: [
@@ -133,7 +133,7 @@ export const officialProgramRoster = [
 
   // Team: Sowmya Nagaraj (TL002) - 12 Counselors
   {
-    name: 'ABRL / Ops',
+    name: 'Axis Retail Lending / Axis Ops',
     dailyTarget: 6,
     tlCode: 'TL002',
     counselors: [
@@ -281,7 +281,7 @@ for (const tl of officialTLs) {
   let existing = db.prepare('SELECT id FROM users WHERE employee_code = ?').get(tl.code);
   let tlId;
   const primaryProgId = tl.code === 'TL001' ? progMap['HDFC Life']
-    : tl.code === 'TL002' ? progMap['ABRL / Ops']
+    : tl.code === 'TL002' ? progMap['Axis Retail Lending / Axis Ops']
     : tl.code === 'TL003' ? progMap['Kotak Ops']
     : progMap['ABYBP'];
 

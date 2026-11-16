@@ -148,7 +148,7 @@ router.post('/events/:id/undo', requireAuth(['tl', 'admin', 'telecaller']), (req
  * POST /api/counselor/custom-count & /api/events/counselor/custom-count
  * Counselor sets custom count for their own status with 1-time daily rechange safeguard
  */
-router.post(['/counselor/custom-count', '/events/counselor/custom-count'], requireAuth(['telecaller', 'tl', 'admin']), (req, res) => {
+router.post(['/counselor/custom-count', '/counselors/custom-count', '/events/counselor/custom-count'], requireAuth(['telecaller', 'tl', 'admin']), (req, res) => {
   const counselorId = (req.user.role === 'admin' || req.user.role === 'tl') && req.body.telecaller_id
     ? Number(req.body.telecaller_id)
     : req.user.id;
