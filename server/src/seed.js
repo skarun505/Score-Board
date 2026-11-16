@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { db } from './db.js';
+import { db, ensureDefaultBatches } from './db.js';
 
 const hash = (pin) => bcrypt.hashSync(String(pin), 10);
 
@@ -53,23 +53,25 @@ if (!db.prepare('SELECT 1 FROM users WHERE employee_code = ?').get(adminCode)) {
   console.log(`Created admin ${adminCode}. CHANGE THE PIN IMMEDIATELY.`);
 }
 
-/* Guard: Do NOT re-seed or overwrite if database already contains floor team */
-const existingTeamCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('tl', 'telecaller')").get()?.c || 0;
-if (existingTeamCount >= 4) {
-  console.log(`Database already contains ${existingTeamCount} team members. Preserving all existing counselors, programs, batch targets, and sales closures.`);
-  db.prepare('DELETE FROM login_attempts').run();
-  console.log('Seed check complete — live data preserved.');
-  process.exit(0);
+/* Check if DSA.xlsx roster is already applied */
+const dsaCheck = db.prepare("SELECT 1 FROM programs WHERE name = 'ABRL / Ops' AND active = 1").get();
+if (dsaCheck) {
+  const existingTeamCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('tl', 'telecaller')").get()?.c || 0;
+  if (existingTeamCount >= 47) {
+    console.log(`Database already configured with official DSA.xlsx roster (${existingTeamCount} team members). Skipping seed to preserve live sales closures.`);
+    db.prepare('DELETE FROM login_attempts').run();
+    process.exit(0);
+  }
 }
 
-/* Programs and Team Leaders from DSA.pdf:
+/* Official Programs, Team Leaders, and Counselors from DSA.xlsx:
    4 Team Leaders:
-   1. Tanmay Makhija (TL001) -> 3 Programs (TATA AIG, HDFC Life, ABC)
-   2. Sowmya Nagaraj (TL002) -> 7 Programs (Axis Ops, Axis Retail Lending, IDFC Emerging, IDFC Elevate, Bandhan, Mahindra, Grihum)
-   3. Saniya Farheen (TL003) -> 3 Programs (Kotak Ops, Kotak Next Gen, Kotak Sky Premium)
-   4. Monjil Kakoti (TL004) -> 2 Programs (Bandhan, ABYBP)
+   1. Tanmay Makhija (TL001) -> 5 Programs (HDFC Life, Operation, ABC, TATA AIG, Care) - 13 Counselors
+   2. Sowmya Nagaraj (TL002) -> 5 Programs (ABRL / Ops, IDFC, Grihum, DCB, Mahindra) - 12 Counselors
+   3. Saniya Farheen (TL003) -> 4 Programs (Kotak Sky, Kotak Ops, Kotak Next Gen, Kotak Ops / Sky) - 10 Counselors
+   4. Monjil Kakoti (TL004) -> 3 Programs (ABYBP, Bandhan, ABYBP / Bandhan) - 12 Counselors
 
-   Total: Exactly 15 distinct programs across the floor.
+   Total: Exactly 17 distinct active programs across the floor, 4 TLs, 47 Counselors.
 */
 export const officialTLs = [
   { code: 'TL001', name: 'Tanmay Makhija' },
@@ -79,28 +81,24 @@ export const officialTLs = [
 ];
 
 export const officialProgramRoster = [
-  // Team 1: Tanmay Makhija (3 Programs, 13 Counselors)
-  {
-    name: 'TATA AIG',
-    dailyTarget: 10,
-    tlCode: 'TL001',
-    counselors: [
-      'Suprith Arun Kumar',
-      'Aparajita Mondal',
-      'Ashwini Selva Kumar',
-      'Vinoth V Shekhar',
-      'Puja Choudhary',
-    ],
-  },
+  // Team: Tanmay Makhija (TL001) - 13 Counselors
   {
     name: 'HDFC Life',
     dailyTarget: 8,
     tlCode: 'TL001',
     counselors: [
+      'Suprith Arun Kumar',
+      'Vinoth V Shekhar',
       'Sadath Baig',
-      'Mohammed Faisal',
-      'Aman Bhardwaj',
-      'Yesuraj Emmanuel',
+      'Ayesha Amreen',
+    ],
+  },
+  {
+    name: 'Operation',
+    dailyTarget: 4,
+    tlCode: 'TL001',
+    counselors: [
+      'Aparajita Mondal',
     ],
   },
   {
@@ -108,139 +106,157 @@ export const officialProgramRoster = [
     dailyTarget: 8,
     tlCode: 'TL001',
     counselors: [
+      'Ashwini Selva Kumar',
+      'Mohammed Faisal',
+      'Aman Bhardwaj',
       'Neha Shreya',
+    ],
+  },
+  {
+    name: 'TATA AIG',
+    dailyTarget: 6,
+    tlCode: 'TL001',
+    counselors: [
+      'Puja Choudhary',
       'Haniya Shariffa',
       'Gagan Babu',
-      'Ayesha Amreen',
+    ],
+  },
+  {
+    name: 'Care',
+    dailyTarget: 4,
+    tlCode: 'TL001',
+    counselors: [
+      'Yesuraj Emmanuel',
     ],
   },
 
-  // Team 2: Sowmya Nagaraj (7 Programs, 12 Counselors)
+  // Team: Sowmya Nagaraj (TL002) - 12 Counselors
   {
-    name: 'Axis Ops',
-    dailyTarget: 4,
+    name: 'ABRL / Ops',
+    dailyTarget: 6,
     tlCode: 'TL002',
     counselors: [
       'Sushmitha Muniyallappa',
-      'Shaik Shanawaz',
-    ],
-  },
-  {
-    name: 'Axis Retail Lending',
-    dailyTarget: 4,
-    tlCode: 'TL002',
-    counselors: [
-      'Sandhya Narayanaswamy',
-      'Priyanka Sundarraman',
-    ],
-  },
-  {
-    name: 'IDFC Emerging',
-    dailyTarget: 4,
-    tlCode: 'TL002',
-    counselors: [
-      'Syed Arshur Rehman',
-      'Afshan Khan',
-    ],
-  },
-  {
-    name: 'IDFC Elevate',
-    dailyTarget: 4,
-    tlCode: 'TL002',
-    counselors: [
-      'Chethan Murali Naik',
       'Monisha Mohan',
-    ],
-  },
-  {
-    name: 'Bandhan (Sowmya)',
-    dailyTarget: 4,
-    tlCode: 'TL002',
-    counselors: [
-      'Saira Hashamee',
       'Bhavani Veeraiah',
     ],
   },
   {
-    name: 'Mahindra',
-    dailyTarget: 2,
+    name: 'IDFC',
+    dailyTarget: 8,
     tlCode: 'TL002',
     counselors: [
+      'Shaik Shanawaz',
+      'Priyanka Sundarraman',
+      'Syed Arshur Rehman',
       'Shalini Ramanath Rao',
     ],
   },
   {
     name: 'Grihum',
-    dailyTarget: 2,
+    dailyTarget: 4,
     tlCode: 'TL002',
     counselors: [
+      'Sandhya Narayanaswamy',
+      'Afshan Khan',
+    ],
+  },
+  {
+    name: 'DCB',
+    dailyTarget: 4,
+    tlCode: 'TL002',
+    counselors: [
+      'Chethan Murali Naik',
       'Khathijatul Kubra',
     ],
   },
-
-  // Team 3: Saniya Farheen (3 Programs, 11 Counselors)
   {
-    name: 'Kotak Ops',
-    dailyTarget: 8,
+    name: 'Mahindra',
+    dailyTarget: 4,
+    tlCode: 'TL002',
+    counselors: [
+      'Saira Hashamee',
+    ],
+  },
+
+  // Team: Saniya Farheen (TL003) - 10 Counselors
+  {
+    name: 'Kotak Sky',
+    dailyTarget: 4,
     tlCode: 'TL003',
     counselors: [
       'Vishal Karali',
+    ],
+  },
+  {
+    name: 'Kotak Ops',
+    dailyTarget: 6,
+    tlCode: 'TL003',
+    counselors: [
       'Puni Priya',
-      'Avathuf Begum',
-      'Keshava Murthy',
+      'Umme Kulsum',
+      'Megha Chaithra',
     ],
   },
   {
     name: 'Kotak Next Gen',
-    dailyTarget: 8,
+    dailyTarget: 10,
     tlCode: 'TL003',
     counselors: [
+      'Avathuf Begum',
+      'Keshava Murthy',
       'Safar Jawed',
       'Rabiya Taj',
       'Aquib Ur Rahaman',
+    ],
+  },
+  {
+    name: 'Kotak Ops / Sky',
+    dailyTarget: 4,
+    tlCode: 'TL003',
+    counselors: [
       'Harshith Venkatesh',
     ],
   },
-  {
-    name: 'Kotak Sky Premium',
-    dailyTarget: 6,
-    tlCode: 'TL003',
-    counselors: [
-      'Umme Kulsum',
-      'Megha Chaithra',
-      'Ashwini Naveen',
-    ],
-  },
 
-  // Team 4: Monjil Kakoti (2 Programs, 11 Counselors)
+  // Team: Monjil Kakoti (TL004) - 12 Counselors
   {
-    name: 'Bandhan (Monjil)',
-    dailyTarget: 12,
+    name: 'ABYBP',
+    dailyTarget: 18,
     tlCode: 'TL004',
     counselors: [
+      'Ashwini Naveen',
       'Bantupalli Sravan Kumar',
-      'Veda Nagaraj',
       'Murapala Karthik',
       'Zainab Jahan',
       'Pritam Das',
       'Afeefa Afeefa',
-    ],
-  },
-  {
-    name: 'ABYBP',
-    dailyTarget: 10,
-    tlCode: 'TL004',
-    counselors: [
       'Suhel Aktar',
-      'Patnam Sushmitha',
-      'Suprita Umesh',
       'Kriti Pandey',
       'Pawan Maddeshiya',
     ],
   },
+  {
+    name: 'Bandhan',
+    dailyTarget: 4,
+    tlCode: 'TL004',
+    counselors: [
+      'Veda Nagaraj',
+      'Suprita Umesh',
+    ],
+  },
+  {
+    name: 'ABYBP / Bandhan',
+    dailyTarget: 4,
+    tlCode: 'TL004',
+    counselors: [
+      'Patnam Sushmitha',
+    ],
+  },
 ];
 
-// Seed or update all 15 individual programs
+// Seed or update all 17 individual programs
 const progMap = {};
 for (const p of officialProgramRoster) {
   let prog = db.prepare('SELECT id FROM programs WHERE name = ?').get(p.name);
@@ -264,10 +280,10 @@ const tlMap = {};
 for (const tl of officialTLs) {
   let existing = db.prepare('SELECT id FROM users WHERE employee_code = ?').get(tl.code);
   let tlId;
-  const primaryProgId = tl.code === 'TL001' ? progMap['TATA AIG']
-    : tl.code === 'TL002' ? progMap['Axis Ops']
+  const primaryProgId = tl.code === 'TL001' ? progMap['HDFC Life']
+    : tl.code === 'TL002' ? progMap['ABRL / Ops']
     : tl.code === 'TL003' ? progMap['Kotak Ops']
-    : progMap['Bandhan (Monjil)'];
+    : progMap['ABYBP'];
 
   if (!existing) {
     tlId = Number(
@@ -286,41 +302,48 @@ for (const tl of officialTLs) {
   tlMap[tl.code] = tlId;
 }
 
-// Seed or update all 47 Counselors with their individual program and TL
+// Seed or update all 47 Counselors with their individual program and TL from DSA.xlsx
 let tcCounter = 1;
 for (const group of officialProgramRoster) {
   const pid = progMap[group.name];
   const tlId = tlMap[group.tlCode];
 
   for (const cName of group.counselors) {
-    const empCode = `TC${String(tcCounter++).padStart(3, '0')}`;
-    const existing = db.prepare('SELECT id FROM users WHERE employee_code = ?').get(empCode);
+    let existing = db.prepare("SELECT * FROM users WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))").get(cName);
     if (!existing) {
+      while (db.prepare('SELECT 1 FROM users WHERE employee_code = ?').get(`TC${String(tcCounter).padStart(3, '0')}`)) {
+        tcCounter++;
+      }
+      const empCode = `TC${String(tcCounter++).padStart(3, '0')}`;
       db.prepare(
         `INSERT INTO users (name, role, employee_code, pin_hash, program_id, tl_id, active) VALUES (?,?,?,?,?,?,1)`
       ).run(cName, 'telecaller', empCode, hash('111111'), pid, tlId);
     } else {
       db.prepare(
-        `UPDATE users SET name = ?, role = 'telecaller', pin_hash = COALESCE(pin_hash, ?), program_id = ?, tl_id = ?, active = 1 WHERE id = ?`
-      ).run(cName, hash('111111'), pid, tlId, existing.id);
+        `UPDATE users SET name = ?, role = 'telecaller', program_id = ?, tl_id = ?, active = 1 WHERE id = ?`
+      ).run(cName, pid, tlId, existing.id);
     }
   }
 }
 
 // Re-map any legacy events to valid program IDs
+db.prepare(`
+  UPDATE events
+  SET program_id = (SELECT program_id FROM users WHERE id = events.telecaller_id)
+  WHERE telecaller_id IN (SELECT id FROM users WHERE role = 'telecaller')
+`).run();
+
+// Clean up old legacy and duplicate placeholder programs
 const validProgIds = Object.values(progMap);
 const validProgIdList = validProgIds.join(',');
 db.prepare(`
-  UPDATE events SET program_id = (SELECT program_id FROM users WHERE id = events.telecaller_id)
-  WHERE program_id NOT IN (${validProgIdList})
+  UPDATE programs SET active = 0 WHERE id NOT IN (${validProgIdList})
 `).run();
 
-// Clean up old legacy and duplicate placeholder programs so admin panel shows ONLY the 15 active programs
-db.prepare(`
-  DELETE FROM programs WHERE id NOT IN (${validProgIdList})
-`).run();
+// Ensure default batches exist for all 17 active programs
+ensureDefaultBatches();
 
-console.log(`Configured exactly 15 distinct Programs, 4 TLs (TL001-TL004), and 47 Counselors (TC001-TC047)`);
+console.log(`Configured exactly 17 distinct Programs from DSA.xlsx, 4 TLs (TL001-TL004), and 47 Counselors (TC001-TC047)`);
 
 db.prepare('DELETE FROM login_attempts').run();
 console.log('Seed complete.');
