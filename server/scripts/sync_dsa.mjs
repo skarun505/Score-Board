@@ -24,14 +24,6 @@ export const officialProgramRoster = [
     ],
   },
   {
-    name: 'Axis Ops',
-    dailyTarget: 4,
-    tlCode: 'TL001',
-    counselors: [
-      'Aparajita Mondal',
-    ],
-  },
-  {
     name: 'ABC',
     dailyTarget: 8,
     tlCode: 'TL001',
@@ -219,10 +211,7 @@ export function runSync() {
     db.prepare('UPDATE users SET program_id = ? WHERE program_id = ?').run(newPid, oldAbrl.id);
     db.prepare('UPDATE programs SET active = 0 WHERE id = ?').run(oldAbrl.id);
   }
-  if (oldOp && progMap['Axis Ops']) {
-    const newPid = progMap['Axis Ops'];
-    db.prepare('UPDATE events SET program_id = ? WHERE program_id = ?').run(newPid, oldOp.id);
-    db.prepare('UPDATE users SET program_id = ? WHERE program_id = ?').run(newPid, oldOp.id);
+  if (oldOp) {
     db.prepare('UPDATE programs SET active = 0 WHERE id = ?').run(oldOp.id);
   }
 
@@ -302,7 +291,17 @@ export function runSync() {
     UPDATE programs SET active = 0 WHERE id NOT IN (${validProgIdList})
   `).run();
 
-  // 6. Ensure default batches exist for all 17 active programs
+  // 6. Deactivate any telecaller not in the official sales counselor roster (e.g. operations team)
+  const allCounselorNames = officialProgramRoster.flatMap((g) => g.counselors.map((n) => n.toLowerCase().trim()));
+  const allTelecallers = db.prepare("SELECT id, name, employee_code FROM users WHERE role = 'telecaller'").all();
+  for (const tc of allTelecallers) {
+    if (!allCounselorNames.includes(tc.name.toLowerCase().trim())) {
+      console.log(`Deactivating non-counselor: ${tc.name} (${tc.employee_code}) - Operations / Inactive`);
+      db.prepare("UPDATE users SET active = 0 WHERE id = ?").run(tc.id);
+    }
+  }
+
+  // 7. Ensure default batches exist for all active programs
   ensureDefaultBatches();
 
   console.log(`Active programs count: ${validProgIds.length}`);

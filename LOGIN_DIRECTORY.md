@@ -1,4 +1,4 @@
-# Live Floor Operations — Complete 17 Programs & Official Login Directory
+# Live Floor Operations — Complete 16 Programs & Official Login Directory
 
 **Official Roster from `DSA.xlsx`**  
 **Default Security PIN for all accounts:** `111111`  
@@ -6,37 +6,35 @@
 
 ---
 
-## 📊 Summary of All 17 Active Programs
+## 📊 Summary of All 16 Active Programs
 
 | # | Program Name | Team Leader | Daily Target | Assigned Counselors |
 | :---: | :--- | :--- | :---: | :--- |
 | 1 | **HDFC Life** | Tanmay Makhija (`TL001`) | 8 | Suprith Arun Kumar, Vinoth V Shekhar, Sadath Baig, Ayesha Amreen (4) |
-| 2 | **Axis Ops** | Tanmay Makhija (`TL001`) | 4 | Aparajita Mondal (1) |
-| 3 | **ABC** | Tanmay Makhija (`TL001`) | 8 | Ashwini Selva Kumar, Mohammed Faisal, Aman Bhardwaj, Neha Shreya (4) |
-| 4 | **TATA AIG** | Tanmay Makhija (`TL001`) | 6 | Puja Choudhary, Haniya Shariffa, Gagan Babu (3) |
-| 5 | **Care** | Tanmay Makhija (`TL001`) | 4 | Yesuraj Emmanuel (1) |
-| 6 | **Axis Retail Lending / Axis Ops** | Sowmya Nagaraj (`TL002`) | 6 | Sushmitha Muniyallappa, Monisha Mohan, Bhavani Veeraiah (3) |
-| 7 | **IDFC** | Sowmya Nagaraj (`TL002`) | 8 | Shaik Shanawaz, Priyanka Sundarraman, Syed Arshur Rehman, Shalini Ramanath Rao (4) |
-| 8 | **Grihum** | Sowmya Nagaraj (`TL002`) | 4 | Sandhya Narayanaswamy, Afshan Khan (2) |
-| 9 | **DCB** | Sowmya Nagaraj (`TL002`) | 4 | Chethan Murali Naik, Khathijatul Kubra (2) |
-| 10 | **Mahindra** | Sowmya Nagaraj (`TL002`) | 4 | Saira Hashamee (1) |
-| 11 | **Kotak Sky** | Saniya Farheen (`TL003`) | 4 | Vishal Karali (1) |
-| 12 | **Kotak Ops** | Saniya Farheen (`TL003`) | 6 | Puni Priya, Umme Kulsum, Megha Chaithra (3) |
-| 13 | **Kotak Next Gen** | Saniya Farheen (`TL003`) | 10 | Avathuf Begum, Keshava Murthy, Safar Jawed, Rabiya Taj, Aquib Ur Rahaman (5) |
-| 14 | **Kotak Ops / Sky** | Saniya Farheen (`TL003`) | 4 | Harshith Venkatesh (1) |
-| 15 | **ABYBP** | Monjil Kakoti (`TL004`) | 18 | Ashwini Naveen, Bantupalli Sravan Kumar, Murapala Karthik, Zainab Jahan, Pritam Das, Afeefa Afeefa, Suhel Aktar, Kriti Pandey, Pawan Maddeshiya (9) |
-| 16 | **Bandhan** | Monjil Kakoti (`TL004`) | 4 | Veda Nagaraj, Suprita Umesh (2) |
-| 17 | **ABYBP / Bandhan** | Monjil Kakoti (`TL004`) | 4 | Patnam Sushmitha (1) |
+| 2 | **ABC** | Tanmay Makhija (`TL001`) | 8 | Ashwini Selva Kumar, Mohammed Faisal, Aman Bhardwaj, Neha Shreya (4) |
+| 3 | **TATA AIG** | Tanmay Makhija (`TL001`) | 6 | Puja Choudhary, Haniya Shariffa, Gagan Babu (3) |
+| 4 | **Care** | Tanmay Makhija (`TL001`) | 4 | Yesuraj Emmanuel (1) |
+| 5 | **Axis Retail Lending / Axis Ops** | Sowmya Nagaraj (`TL002`) | 6 | Sushmitha Muniyallappa, Monisha Mohan, Bhavani Veeraiah (3) |
+| 6 | **IDFC** | Sowmya Nagaraj (`TL002`) | 8 | Shaik Shanawaz, Priyanka Sundarraman, Syed Arshur Rehman, Shalini Ramanath Rao (4) |
+| 7 | **Grihum** | Sowmya Nagaraj (`TL002`) | 4 | Sandhya Narayanaswamy, Afshan Khan (2) |
+| 8 | **DCB** | Sowmya Nagaraj (`TL002`) | 4 | Chethan Murali Naik, Khathijatul Kubra (2) |
+| 9 | **Mahindra** | Sowmya Nagaraj (`TL002`) | 4 | Saira Hashamee (1) |
+| 10 | **Kotak Sky** | Saniya Farheen (`TL003`) | 4 | Vishal Karali (1) |
+| 11 | **Kotak Ops** | Saniya Farheen (`TL003`) | 6 | Puni Priya, Umme Kulsum, Megha Chaithra (3) |
+| 12 | **Kotak Next Gen** | Saniya Farheen (`TL003`) | 10 | Avathuf Begum, Keshava Murthy, Safar Jawed, Rabiya Taj, Aquib Ur Rahaman (5) |
+| 13 | **Kotak Ops / Sky** | Saniya Farheen (`TL003`) | 4 | Harshith Venkatesh (1) |
+| 14 | **ABYBP** | Monjil Kakoti (`TL004`) | 18 | Ashwini Naveen, Bantupalli Sravan Kumar, Murapala Karthik, Zainab Jahan, Pritam Das, Afeefa Afeefa, Suhel Aktar, Kriti Pandey, Pawan Maddeshiya (9) |
+| 15 | **Bandhan** | Monjil Kakoti (`TL004`) | 4 | Veda Nagaraj, Suprita Umesh (2) |
+| 16 | **ABYBP / Bandhan** | Monjil Kakoti (`TL004`) | 4 | Patnam Sushmitha (1) |
 
 ---
 
 ## 🏢 Complete Team & Counselor Roster
 
-### Team 1: Tanmay Makhija (`TL001`) — 5 Programs (13 Counselors)
+### Team 1: Tanmay Makhija (`TL001`) — 4 Programs (12 Counselors)
 | Code | Counselor Name | Assigned Program | Target | PIN |
 | :--- | :--- | :--- | :---: | :--- |
 | `TC001` | Suprith Arun Kumar | **HDFC Life** | 8 | `111111` |
-| `TC002` | Aparajita Mondal | **Axis Ops** | 4 | `111111` |
 | `TC003` | Ashwini Selva Kumar | **ABC** | 8 | `111111` |
 | `TC004` | Vinoth V Shekhar | **HDFC Life** | 8 | `111111` |
 | `TC005` | Puja Choudhary | **TATA AIG** | 6 | `111111` |
@@ -48,6 +46,8 @@
 | `TC011` | Haniya Shariffa | **TATA AIG** | 6 | `111111` |
 | `TC012` | Gagan Babu | **TATA AIG** | 6 | `111111` |
 | `TC013` | Ayesha Amreen | **HDFC Life** | 8 | `111111` |
+
+*(Note: Aparajita Mondal is on the Operations team, not sales counselor roster).*
 
 ### Team 2: Sowmya Nagaraj (`TL002`) — 5 Programs (12 Counselors)
 | Code | Counselor Name | Assigned Program | Target | PIN |

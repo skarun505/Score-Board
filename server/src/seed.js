@@ -56,8 +56,8 @@ if (!db.prepare('SELECT 1 FROM users WHERE employee_code = ?').get(adminCode)) {
 /* Check if DSA.xlsx roster is already applied */
 const dsaCheck = db.prepare("SELECT 1 FROM programs WHERE name IN ('Axis Retail Lending / Axis Ops', 'ABRL / Ops') AND active = 1").get();
 if (dsaCheck) {
-  const existingTeamCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('tl', 'telecaller')").get()?.c || 0;
-  if (existingTeamCount >= 47) {
+  const existingTeamCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role IN ('tl', 'telecaller') AND active = 1").get()?.c || 0;
+  if (existingTeamCount >= 46) {
     console.log(`Database already configured with official DSA.xlsx roster (${existingTeamCount} team members). Skipping seed to preserve live sales closures.`);
     db.prepare('DELETE FROM login_attempts').run();
     process.exit(0);
@@ -66,12 +66,13 @@ if (dsaCheck) {
 
 /* Official Programs, Team Leaders, and Counselors from DSA.xlsx:
    4 Team Leaders:
-   1. Tanmay Makhija (TL001) -> 5 Programs (HDFC Life, Axis Ops, ABC, TATA AIG, Care) - 13 Counselors
+   1. Tanmay Makhija (TL001) -> 4 Programs (HDFC Life, ABC, TATA AIG, Care) - 12 Counselors
    2. Sowmya Nagaraj (TL002) -> 5 Programs (Axis Retail Lending / Axis Ops, IDFC, Grihum, DCB, Mahindra) - 12 Counselors
    3. Saniya Farheen (TL003) -> 4 Programs (Kotak Sky, Kotak Ops, Kotak Next Gen, Kotak Ops / Sky) - 10 Counselors
    4. Monjil Kakoti (TL004) -> 3 Programs (ABYBP, Bandhan, ABYBP / Bandhan) - 12 Counselors
 
-   Total: Exactly 17 distinct active programs across the floor, 4 TLs, 47 Counselors.
+   Total: Exactly 16 distinct active programs across the floor, 4 TLs, 46 Counselors.
+   (Note: Aparajita Mondal from operations team excluded from sales counselor roster).
 */
 export const officialTLs = [
   { code: 'TL001', name: 'Tanmay Makhija' },
@@ -81,7 +82,7 @@ export const officialTLs = [
 ];
 
 export const officialProgramRoster = [
-  // Team: Tanmay Makhija (TL001) - 13 Counselors
+  // Team: Tanmay Makhija (TL001) - 12 Counselors
   {
     name: 'HDFC Life',
     dailyTarget: 8,
@@ -91,14 +92,6 @@ export const officialProgramRoster = [
       'Vinoth V Shekhar',
       'Sadath Baig',
       'Ayesha Amreen',
-    ],
-  },
-  {
-    name: 'Axis Ops',
-    dailyTarget: 4,
-    tlCode: 'TL001',
-    counselors: [
-      'Aparajita Mondal',
     ],
   },
   {
