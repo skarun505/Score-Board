@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import { db, audit } from '../db.js';
+import { db, audit, recordUserLogin } from '../db.js';
 import { signToken, requireAuth } from '../auth.js';
 
 const router = Router();
@@ -53,10 +53,13 @@ router.post('/login', limiter, (req, res) => {
   // Reset failed attempts on success
   db.prepare('DELETE FROM login_attempts WHERE employee_code = ?').run(code);
 
-  audit(user.id, 'login.ok', 'user', user.id);
+  const streakInfo = recordUserLogin(user.id);
+
+  audit(user.id, 'login.ok', 'user', user.id, streakInfo);
   res.json({
     token: signToken(user),
     user: { id: user.id, name: user.name, role: user.role, employee_code: user.employee_code, program_id: user.program_id },
+    streak: streakInfo,
   });
 });
 

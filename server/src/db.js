@@ -119,11 +119,24 @@ CREATE TABLE IF NOT EXISTS batches (
 );
 CREATE INDEX IF NOT EXISTS idx_batches_prog ON batches (program_id, active);
 
+CREATE TABLE IF NOT EXISTS user_logins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  login_date TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(user_id, login_date)
+);
+CREATE INDEX IF NOT EXISTS idx_user_logins ON user_logins (user_id, login_date);
+
 `);
 
 try { db.exec('ALTER TABLE users ADD COLUMN birthday TEXT'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN hire_date TEXT'); } catch {}
 try { db.exec('ALTER TABLE events ADD COLUMN batch_id INTEGER REFERENCES batches(id)'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN last_login_at TEXT'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN last_login_date TEXT'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN login_streak INTEGER DEFAULT 0'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN highest_login_streak INTEGER DEFAULT 0'); } catch {}
 
 export const TZ = process.env.TZ_NAME || 'Asia/Kolkata';
 const DAY_START = Number(process.env.DAY_START_HOUR || 0);
@@ -162,4 +175,188 @@ export function ensureDefaultBatches() {
 }
 
 ensureDefaultBatches();
+
+/**
+ * Record user daily login and compute streak.
+ * If user does not log in for more than 4 days, streak ends (resets to 1).
+ */
+export function recordUserLogin(userId, now = new Date()) {
+  const today = businessDate(now);
+  const nowIso = now.toISOString();
+
+  const user = db.prepare(`
+    SELECT id, name, last_login_date, last_login_at, login_streak, highest_login_streak
+    FROM users WHERE id = ?
+  `).get(userId);
+
+  if (!user) return null;
+
+  try {
+    db.prepare(`
+      INSERT OR IGNORE INTO user_logins (user_id, login_date, created_at)
+      VALUES (?, ?, ?)
+    `).run(userId, today, nowIso);
+  } catch {}
+
+  let newStreak = user.login_streak || 0;
+  let streakBroken = false;
+  let previousStreak = user.login_streak || 0;
+  let diffDays = 0;
+
+  if (!user.last_login_date) {
+    newStreak = 1;
+  } else if (user.last_login_date === today) {
+    newStreak = Math.max(1, user.login_streak || 1);
+  } else {
+    const lastDate = new Date(user.last_login_date + 'T00:00:00Z');
+    const currDate = new Date(today + 'T00:00:00Z');
+    diffDays = Math.max(0, Math.round((currDate - lastDate) / 86400_000));
+
+    if (diffDays > 4) {
+      // Inactive for more than 4 days: streak ends!
+      streakBroken = true;
+      newStreak = 1;
+    } else {
+      newStreak = (user.login_streak || 0) + 1;
+    }
+  }
+
+  const highestStreak = Math.max(user.highest_login_streak || 0, newStreak);
+
+  db.prepare(`
+    UPDATE users SET
+      last_login_at = ?,
+      last_login_date = ?,
+      login_streak = ?,
+      highest_login_streak = ?
+    WHERE id = ?
+  `).run(nowIso, today, newStreak, highestStreak, userId);
+
+  return {
+    user_id: userId,
+    streak: newStreak,
+    highest_streak: highestStreak,
+    streak_broken: streakBroken,
+    previous_streak: previousStreak,
+    diff_days: diffDays,
+    last_login_date: today,
+  };
+}
+
+/**
+ * Get counselor login streak status and warnings.
+ */
+export function getCounselorLoginStreakStatus(userId, today = businessDate()) {
+  const user = db.prepare(`
+    SELECT id, name, last_login_date, last_login_at, login_streak, highest_login_streak
+    FROM users WHERE id = ?
+  `).get(userId);
+
+  if (!user) {
+    return {
+      current_streak: 0,
+      highest_streak: 0,
+      status: 'active',
+      streak_warning: null,
+      days_inactive: 0,
+      logged_in_today: false,
+    };
+  }
+
+  const loggedInToday = user.last_login_date === today;
+  let daysInactive = 0;
+
+  if (user.last_login_date) {
+    const lastDate = new Date(user.last_login_date + 'T00:00:00Z');
+    const currDate = new Date(today + 'T00:00:00Z');
+    daysInactive = Math.max(0, Math.round((currDate - lastDate) / 86400_000));
+  } else {
+    daysInactive = 999;
+  }
+
+  let status = 'active';
+  let streakWarning = null;
+  let streakEnded = false;
+
+  if (daysInactive > 4) {
+    status = 'ended';
+    streakEnded = true;
+    streakWarning = `⚠️ Streak ended: You were inactive for more than 4 days (${daysInactive === 999 ? '4+' : daysInactive} days missed). Your Team Leader was notified. Log in daily to rebuild your streak!`;
+  } else if (daysInactive >= 3 && !loggedInToday) {
+    status = 'at_risk';
+    streakWarning = `⚠️ Streak at risk! You have not logged in for ${daysInactive} days. If you do not log in within 4 days, your streak will end and your Team Leader will be notified!`;
+  }
+
+  return {
+    current_streak: streakEnded && !loggedInToday ? 0 : (user.login_streak || (loggedInToday ? 1 : 0)),
+    highest_streak: user.highest_login_streak || user.login_streak || 0,
+    last_login_date: user.last_login_date,
+    last_login_at: user.last_login_at,
+    days_inactive: daysInactive,
+    logged_in_today: loggedInToday,
+    status,
+    streak_warning: streakWarning,
+    streak_ended: streakEnded,
+  };
+}
+
+/**
+ * Get all counselors under a TL (or floor-wide) who are inactive for >= 4 days or at risk.
+ */
+export function getTlInactiveCounselors(tlId, today = businessDate()) {
+  const where = tlId ? 'AND u.tl_id = ?' : '';
+  const params = tlId ? [tlId] : [];
+
+  const rows = db.prepare(`
+    SELECT u.id, u.name, u.employee_code, u.photo_url, u.program_id, u.tl_id,
+           u.last_login_date, u.last_login_at, u.login_streak, u.highest_login_streak,
+           p.name AS program_name,
+           tl.name AS tl_name
+    FROM users u
+    LEFT JOIN programs p ON p.id = u.program_id
+    LEFT JOIN users tl ON tl.id = u.tl_id
+    WHERE u.role = 'telecaller' AND u.active = 1 ${where}
+    ORDER BY u.name ASC
+  `).all(...params);
+
+  const list = [];
+  const currDate = new Date(today + 'T00:00:00Z');
+
+  for (const r of rows) {
+    let daysInactive = 999;
+    if (r.last_login_date) {
+      const lastDate = new Date(r.last_login_date + 'T00:00:00Z');
+      daysInactive = Math.max(0, Math.round((currDate - lastDate) / 86400_000));
+    }
+    const isInactiveAlert = daysInactive > 4; // Not logged in for more than 4 days
+    const isAtRisk = daysInactive >= 3 && daysInactive <= 4;
+
+    if (isInactiveAlert || isAtRisk) {
+      list.push({
+        id: r.id,
+        name: r.name,
+        employee_code: r.employee_code,
+        photo_url: r.photo_url,
+        program_name: r.program_name,
+        tl_name: r.tl_name,
+        last_login_date: r.last_login_date,
+        last_login_at: r.last_login_at,
+        days_inactive: daysInactive,
+        login_streak: r.login_streak || 0,
+        streak_ended: isInactiveAlert,
+        status: isInactiveAlert ? 'ended' : 'at_risk',
+        message: isInactiveAlert
+          ? `Inactive for ${daysInactive === 999 ? '4+' : daysInactive} days — Streak ended`
+          : `At risk: Inactive for ${daysInactive} days`,
+      });
+    }
+  }
+
+  return {
+    total_alerts: list.length,
+    streak_ended_count: list.filter((c) => c.streak_ended).length,
+    at_risk_count: list.filter((c) => !c.streak_ended).length,
+    counselors: list.sort((a, b) => b.days_inactive - a.days_inactive),
+  };
+}
 

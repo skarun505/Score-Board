@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, businessDate } from '../db.js';
+import { db, businessDate, recordUserLogin, getCounselorLoginStreakStatus, getTlInactiveCounselors } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { recordEvent, undoEvent, getEventView, UNDO_SECONDS } from '../services/events.js';
 import { getSnapshot, calculateCounselorRankTier, calculateBadges } from '../services/dashboard.js';
@@ -22,7 +22,8 @@ router.get('/team', requireAuth(['tl', 'admin']), (req, res) => {
     ? [today, today, weekFrom, today, weekFrom, today, req.user.id]
     : [today, today, weekFrom, today, weekFrom, today];
   const rows = db.prepare(`
-    SELECT u.id, u.name, u.photo_url, u.program_id, p.name AS program_name, p.daily_target,
+    SELECT u.id, u.name, u.photo_url, u.program_id, u.last_login_date, u.last_login_at,
+           u.login_streak, u.highest_login_streak, p.name AS program_name, p.daily_target,
            COUNT(DISTINCT CASE WHEN e.business_date = ? THEN e.id END) AS updates_today,
            COALESCE(SUM(CASE WHEN e.business_date = ? AND s.is_sale = 1 THEN 1 ELSE 0 END), 0) AS sales_today,
            COALESCE(SUM(CASE WHEN e.business_date BETWEEN ? AND ? AND s.is_sale = 1 THEN 1 ELSE 0 END), 0) AS sales_week
@@ -32,7 +33,31 @@ router.get('/team', requireAuth(['tl', 'admin']), (req, res) => {
     LEFT JOIN statuses s ON s.id = e.status_id
     WHERE u.role = 'telecaller' AND u.active = 1 ${where}
     GROUP BY u.id ORDER BY u.name`).all(...params);
-  res.json(rows);
+
+  const currDate = new Date(today + 'T00:00:00Z');
+  const enriched = rows.map((r) => {
+    let daysInactive = 999;
+    if (r.last_login_date) {
+      const lastD = new Date(r.last_login_date + 'T00:00:00Z');
+      daysInactive = Math.max(0, Math.round((currDate - lastD) / 86400_000));
+    }
+    const isInactiveAlert = daysInactive > 4; // Missed > 4 days
+    const isAtRisk = daysInactive >= 3 && daysInactive <= 4;
+    return {
+      ...r,
+      days_inactive: daysInactive,
+      is_inactive_alert: isInactiveAlert,
+      is_at_risk: isAtRisk,
+      streak_ended: isInactiveAlert,
+    };
+  });
+
+  res.json(enriched);
+});
+
+router.get('/tl/attendance-alerts', requireAuth(['tl', 'admin']), (req, res) => {
+  const tlId = req.user.role === 'tl' ? req.user.id : null;
+  res.json(getTlInactiveCounselors(tlId));
 });
 
 /* Counselor profile and today's activity stats */
@@ -116,6 +141,10 @@ router.get('/counselor/me', requireAuth(['telecaller', 'tl', 'admin']), (req, re
   const floorBadges = calculateBadges(today, yday);
   const counselorBadges = floorBadges[tcId] || [];
 
+  // Ensure daily login is recorded for counselor
+  recordUserLogin(tcId);
+  const loginStreak = getCounselorLoginStreakStatus(tcId, today);
+
   const recent = db.prepare(`
     SELECT e.id, e.created_at, e.lead_ref, s.code, s.label, s.color, s.is_sale
     FROM events e
@@ -130,6 +159,7 @@ router.get('/counselor/me', requireAuth(['telecaller', 'tl', 'admin']), (req, re
     is_on_fire: isOnFire,
     recent_sales_last_hour: recentSalesHour,
     badges: counselorBadges,
+    login_streak: loginStreak,
     can_spin_wheel: (stats.sales_today || 0) >= 1,
     recent,
   });

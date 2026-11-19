@@ -1359,6 +1359,8 @@ export default function TLPage() {
   const totalL1 = team.reduce((sum, t) => sum + (t.l1_today || 0), 0);
   const totalL2 = team.reduce((sum, t) => sum + (t.l2_today || 0), 0);
   const activeToday = team.filter((t) => (t.sales_today || 0) > 0 || (t.updates_today || 0) > 0).length;
+  const inactiveCounselors = team.filter((t) => t.is_inactive_alert);
+  const atRiskCounselors = team.filter((t) => t.is_at_risk);
 
   const filteredTeam = team.filter((t) => {
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -1539,6 +1541,59 @@ export default function TLPage() {
           </div>
         </div>
 
+        {/* Attendance Alert Banner (>4 Days Inactive) */}
+        {inactiveCounselors.length > 0 && (
+          <div className="tl-attendance-alert-banner" style={{
+            background: 'linear-gradient(135deg, #fef2f2, #fff1f2)',
+            border: '1.5px solid #ef4444',
+            borderRadius: '1rem',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.25rem',
+            boxShadow: '0 4px 15px rgba(239, 68, 68, 0.1)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '0.45rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#991b1b', fontWeight: 900, fontSize: '0.98rem' }}>
+                <i className="fas fa-triangle-exclamation text-red" style={{ fontSize: '1.25rem' }} />
+                <span>ATTENDANCE ALERT: {inactiveCounselors.length} Counselor{inactiveCounselors.length > 1 ? 's' : ''} Inactive for &gt;4 Days</span>
+              </div>
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, background: '#ef4444', color: '#fff', padding: '0.2rem 0.65rem', borderRadius: '999px' }}>
+                Action Required
+              </span>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#7f1d1d', marginBottom: '0.8rem', lineHeight: 1.4 }}>
+              The following counselors have missed more than 4 consecutive days of daily logins. Their login streaks have officially ended. Please follow up on floor attendance:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+              {inactiveCounselors.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => { setSelected(c); setLeadRef(''); }}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #f87171',
+                    borderRadius: '0.75rem',
+                    padding: '0.45rem 0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                  }}
+                  title="Click to select counselor"
+                >
+                  <Avatar p={c} size="1.8rem" />
+                  <span style={{ fontWeight: 800, color: '#0f172a' }}>{c.name}</span>
+                  <span style={{ color: '#64748b' }}>({c.program_name})</span>
+                  <span style={{ fontWeight: 800, color: '#dc2626', background: '#fee2e2', padding: '0.1rem 0.45rem', borderRadius: '999px', fontSize: '0.72rem' }}>
+                    {c.days_inactive === 999 ? 'Never logged in' : `${c.days_inactive}d missed`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Telecaller Grid */}
         <div className="tl-counselor-grid">
           {filteredTeam.map((t) => {
@@ -1593,6 +1648,57 @@ export default function TLPage() {
                 <div className="tl-tile-code-prog">
                   <code>{t.employee_code}</code> · <span>{t.program_name || 'Program'}</span>
                 </div>
+
+                {/* Login Streak & Inactivity Status Pill */}
+                {t.is_inactive_alert ? (
+                  <div style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    color: '#dc2626',
+                    background: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '999px',
+                    padding: '0.15rem 0.5rem',
+                    margin: '0.25rem 0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}>
+                    <i className="fas fa-triangle-exclamation" /> Inactive &gt;4d · Streak Ended
+                  </div>
+                ) : t.is_at_risk ? (
+                  <div style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    color: '#b45309',
+                    background: '#fef3c7',
+                    border: '1px solid #fde68a',
+                    borderRadius: '999px',
+                    padding: '0.15rem 0.5rem',
+                    margin: '0.25rem 0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}>
+                    <i className="fas fa-clock" /> Inactive {t.days_inactive}d · Streak At Risk
+                  </div>
+                ) : (
+                  <div style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    color: '#15803d',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '999px',
+                    padding: '0.15rem 0.5rem',
+                    margin: '0.25rem 0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}>
+                    <i className="fas fa-fire-flame-curved" style={{ color: '#f59e0b' }} /> {t.login_streak || 1}d Streak
+                  </div>
+                )}
 
                 <div className={`tl-sale-badge ${hasSales ? 'positive' : 'zero'}`}>
                   {hasSales ? (

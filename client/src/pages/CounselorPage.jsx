@@ -686,6 +686,7 @@ export default function CounselorPage() {
   const [rankTier, setRankTier] = useState(null);
   const [isOnFire, setIsOnFire] = useState(false);
   const [canSpinWheel, setCanSpinWheel] = useState(false);
+  const [loginStreak, setLoginStreak] = useState(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('counselor_dark') === '1');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineCount, setOfflineCount] = useState(() => {
@@ -702,6 +703,7 @@ export default function CounselorPage() {
     setRankTier(null);
     setIsOnFire(false);
     setCanSpinWheel(false);
+    setLoginStreak(null);
   }
 
   function onLogin(r) {
@@ -719,6 +721,7 @@ export default function CounselorPage() {
       setRankTier(data.rank_tier);
       setIsOnFire(data.is_on_fire);
       setCanSpinWheel(data.can_spin_wheel);
+      setLoginStreak(data.login_streak);
     } catch (e) {
       if (e.status === 401) logout();
     }
@@ -996,6 +999,45 @@ export default function CounselorPage() {
         </div>
       </header>
 
+      {/* Daily Login Streak Status & Inactivity Alert Banner */}
+      {loginStreak?.streak_warning && (
+        <div className={`counselor-streak-alert-box ${loginStreak.status}`} style={{
+          background: loginStreak.status === 'ended' ? '#fef2f2' : '#fffbeb',
+          border: `1.5px solid ${loginStreak.status === 'ended' ? '#ef4444' : '#f59e0b'}`,
+          borderRadius: '1rem',
+          padding: '0.85rem 1.15rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.9rem',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{
+            fontSize: '1.4rem',
+            color: loginStreak.status === 'ended' ? '#ef4444' : '#d97706',
+          }}>
+            <i className={`fas ${loginStreak.status === 'ended' ? 'fa-triangle-exclamation' : 'fa-clock'}`} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontWeight: 800,
+              fontSize: '0.92rem',
+              color: loginStreak.status === 'ended' ? '#991b1b' : '#92400e',
+              marginBottom: '0.2rem',
+            }}>
+              {loginStreak.status === 'ended' ? 'STREAK ENDED (>4 DAYS INACTIVE)' : 'DAILY LOGIN REMINDER'}
+            </div>
+            <div style={{
+              fontSize: '0.84rem',
+              color: loginStreak.status === 'ended' ? '#b91c1c' : '#78350f',
+              lineHeight: 1.35,
+            }}>
+              {loginStreak.streak_warning}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Gamification Level-Up & On-Fire Hub */}
       <div className="counselor-gamification-card" style={{
         background: 'var(--card-bg, #ffffff)',
@@ -1039,6 +1081,21 @@ export default function CounselorPage() {
                 borderRadius: '999px',
               }}>
                 Level {rankTier?.level || 0}
+              </span>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                background: loginStreak?.status === 'ended' ? '#fee2e2' : 'rgba(245, 158, 11, 0.12)',
+                color: loginStreak?.status === 'ended' ? '#991b1b' : '#b45309',
+                border: `1px solid ${loginStreak?.status === 'ended' ? '#f87171' : 'rgba(245, 158, 11, 0.4)'}`,
+                padding: '0.15rem 0.55rem',
+                borderRadius: '999px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+              }} title={loginStreak?.status === 'ended' ? 'Streak ended (>4 days inactive)' : `${loginStreak?.current_streak || 1} day login streak`}>
+                <i className="fas fa-fire-flame-curved" style={{ color: loginStreak?.status === 'ended' ? '#ef4444' : '#f59e0b' }} />
+                <span>{loginStreak?.status === 'ended' ? 'Streak Reset' : `${loginStreak?.current_streak || 1}d Streak`}</span>
               </span>
               {isOnFire && (
                 <span style={{

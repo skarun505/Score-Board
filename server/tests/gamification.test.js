@@ -8,6 +8,11 @@ import {
   calculateNudges,
   calculateCelebrations,
 } from '../src/services/dashboard.js';
+import {
+  recordUserLogin,
+  getCounselorLoginStreakStatus,
+  getTlInactiveCounselors,
+} from '../src/db.js';
 
 describe('Gamification Unit Tests', () => {
   let tc1, tc2, progA, progB, tl1, saleStatus;
@@ -133,5 +138,46 @@ describe('Gamification Unit Tests', () => {
 
     // Clean up
     db.prepare('UPDATE users SET birthday = NULL, hire_date = NULL WHERE id IN (?, ?)').run(tc1.id, tc2.id);
+  });
+
+  test('Daily Login Streak and >4 days inactivity warning for counselor & TL', () => {
+    // Reset tc1 login state and ensure tc1 belongs to tl1
+    db.prepare('UPDATE users SET tl_id = ?, last_login_date = NULL, last_login_at = NULL, login_streak = 0 WHERE id = ?').run(tl1.id, tc1.id);
+
+    // Day 1: First login -> streak = 1
+    const day1 = new Date('2026-11-01T10:00:00Z');
+    const res1 = recordUserLogin(tc1.id, day1);
+    assert.equal(res1.streak, 1);
+    assert.equal(res1.streak_broken, false);
+
+    // Day 1 duplicate login -> streak stays 1
+    const res1Dup = recordUserLogin(tc1.id, new Date('2026-11-01T15:00:00Z'));
+    assert.equal(res1Dup.streak, 1);
+
+    // Day 2 consecutive login -> streak = 2
+    const day2 = new Date('2026-11-02T10:00:00Z');
+    const res2 = recordUserLogin(tc1.id, day2);
+    assert.equal(res2.streak, 2);
+
+    // Day 3 consecutive login -> streak = 3
+    const day3 = new Date('2026-11-03T10:00:00Z');
+    const res3 = recordUserLogin(tc1.id, day3);
+    assert.equal(res3.streak, 3);
+
+    // On Day 8 (5 days later, > 4 days inactive):
+    // Check status before logging in:
+    const statusBefore = getCounselorLoginStreakStatus(tc1.id, '2026-11-08');
+    assert.equal(statusBefore.status, 'ended');
+    assert.equal(statusBefore.streak_ended, true);
+    assert.ok(statusBefore.streak_warning.includes('more than 4 days'));
+
+    // TL checks inactive counselors:
+    const tlAlerts = getTlInactiveCounselors(tl1.id, '2026-11-08');
+    assert.ok(tlAlerts.counselors.some((c) => c.id === tc1.id && c.streak_ended));
+
+    // When tc1 logs in on Day 8:
+    const res8 = recordUserLogin(tc1.id, new Date('2026-11-08T10:00:00Z'));
+    assert.equal(res8.streak_broken, true);
+    assert.equal(res8.streak, 1); // Streak ended and restarted
   });
 });
