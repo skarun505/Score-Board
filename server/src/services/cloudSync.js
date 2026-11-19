@@ -3,6 +3,20 @@ import { db } from '../db.js';
 
 const { Pool } = pg;
 
+function sanitizeDbUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const match = url.match(/^(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@.+)$/);
+    if (match) {
+      const [, prefix, pass, suffix] = match;
+      if (pass.includes('#') && !pass.includes('%23')) {
+        return `${prefix}${encodeURIComponent(pass)}${suffix}`;
+      }
+    }
+  } catch {}
+  return url;
+}
+
 export class CloudSyncService {
   constructor() {
     this.pool = null;
@@ -19,12 +33,14 @@ export class CloudSyncService {
 
   /** Initialize Cloud PostgreSQL pool if DATABASE_URL or POSTGRES_URL is provided */
   async init() {
-    const rawUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
+    let rawUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
     if (!rawUrl) {
       console.log('ℹ️ [CloudSync] No DATABASE_URL configured. Running Tier 1 (In-Memory Engine) + Tier 3 (Daily Backups).');
       this.enabled = false;
       return;
     }
+
+    rawUrl = sanitizeDbUrl(rawUrl);
 
     try {
       this.connectionUrl = rawUrl;
@@ -148,6 +164,14 @@ export class CloudSyncService {
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS user_logins (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          login_date TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_pg_user_logins ON user_logins (user_id, login_date);
 
         CREATE TABLE IF NOT EXISTS audit_log (
           id INTEGER PRIMARY KEY,
