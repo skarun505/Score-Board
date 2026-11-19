@@ -299,6 +299,132 @@ function CounselorLogin({ onLogin }) {
   );
 }
 
+/* ─── Counselor Wheel of Fortune / Mystery Bonus Modal ─── */
+function CounselorWheelModal({ token, onClose, onWon }) {
+  const [spinning, setSpinning] = useState(false);
+  const [wonPerk, setWonPerk] = useState(null);
+  const [err, setErr] = useState('');
+  const [rotation, setRotation] = useState(0);
+
+  async function spin() {
+    if (spinning) return;
+    setSpinning(true);
+    setErr('');
+    setWonPerk(null);
+
+    const extraRot = 1440 + Math.floor(Math.random() * 360);
+    setRotation((r) => r + extraRot);
+
+    try {
+      const res = await api('/api/counselor/spin-wheel', { method: 'POST', token });
+      setTimeout(() => {
+        setWonPerk(res.perk);
+        setSpinning(false);
+        if (onWon) onWon(res.perk);
+      }, 3000);
+    } catch (e) {
+      setErr(e.message || 'Failed to spin');
+      setSpinning(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modern-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center' }}>
+        <div className="modal-header-row">
+          <div className="modal-title">
+            <i className="fas fa-dharmachakra text-amber fa-spin-pulse"></i>
+            <h3>Wheel of Fortune</h3>
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+
+        <p style={{ fontSize: '0.88rem', color: '#64748b', margin: '0.4rem 0 1rem' }}>
+          Exclusive office perk unlocked for closing sales today!
+        </p>
+
+        {/* Visual Wheel Display */}
+        <div style={{ position: 'relative', width: '210px', height: '210px', margin: '0 auto 1.2rem' }}>
+          <div style={{
+            position: 'absolute',
+            top: '-12px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+            fontSize: '1.5rem',
+            color: '#dc2626',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+          }}>
+            ▼
+          </div>
+
+          <div style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            border: '6px solid #1e293b',
+            boxShadow: '0 0 25px rgba(245, 158, 11, 0.4)',
+            transition: 'transform 3s cubic-bezier(0.15, 0.9, 0.25, 1)',
+            transform: `rotate(${rotation}deg)`,
+            background: 'conic-gradient(#d97706 0deg 60deg, #8b5cf6 60deg 120deg, #10b981 120deg 180deg, #f59e0b 180deg 240deg, #3b82f6 240deg 300deg, #ec4899 300deg 360deg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: '#0f172a',
+              borderRadius: '50%',
+              border: '3px solid #f8fafc',
+              color: '#f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem',
+              fontWeight: 900
+            }}>
+              ★
+            </div>
+          </div>
+        </div>
+
+        {wonPerk && (
+          <div style={{
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)',
+            border: '2px solid #f59e0b',
+            borderRadius: '0.85rem',
+            padding: '1rem',
+            marginBottom: '1rem',
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#b45309' }}>
+              {wonPerk.rarity} REWARD UNLOCKED!
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#92400e', marginTop: '0.2rem' }}>
+              {wonPerk.label}
+            </div>
+          </div>
+        )}
+
+        {err && <div className="modal-err-box" style={{ marginBottom: '1rem' }}><i className="fas fa-circle-exclamation" /> {err}</div>}
+
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center' }}>
+          <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={spinning}
+            onClick={spin}
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderColor: '#d97706', fontWeight: 800 }}
+          >
+            {spinning ? <><i className="fas fa-spinner fa-spin" /> Spinning…</> : <><i className="fas fa-play" /> Spin the Wheel!</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Counselor Custom Count & 1-Time Daily Rechange Modal ─── */
 function CounselorCustomCountModal({ token, initialStatus, currentCount, stats, onDone, onClose }) {
   const [statusCode, setStatusCode] = useState(initialStatus || 'sale_closed');
@@ -556,6 +682,10 @@ export default function CounselorPage() {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [customCountModal, setCustomCountModal] = useState(null);
+  const [showWheelModal, setShowWheelModal] = useState(false);
+  const [rankTier, setRankTier] = useState(null);
+  const [isOnFire, setIsOnFire] = useState(false);
+  const [canSpinWheel, setCanSpinWheel] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('counselor_dark') === '1');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineCount, setOfflineCount] = useState(() => {
@@ -569,6 +699,9 @@ export default function CounselorPage() {
     setSession(null);
     setProfile(null);
     setStats(null);
+    setRankTier(null);
+    setIsOnFire(false);
+    setCanSpinWheel(false);
   }
 
   function onLogin(r) {
@@ -583,6 +716,9 @@ export default function CounselorPage() {
       setProfile(data.user);
       setStats(data.stats);
       setRecent(data.recent || []);
+      setRankTier(data.rank_tier);
+      setIsOnFire(data.is_on_fire);
+      setCanSpinWheel(data.can_spin_wheel);
     } catch (e) {
       if (e.status === 401) logout();
     }
@@ -803,6 +939,18 @@ export default function CounselorPage() {
         />
       )}
 
+      {/* Spin-the-Wheel / Milestone Bonus Modal */}
+      {showWheelModal && (
+        <CounselorWheelModal
+          token={token}
+          onWon={(perk) => {
+            loadData();
+            if (window.confetti) window.confetti();
+          }}
+          onClose={() => setShowWheelModal(false)}
+        />
+      )}
+
       {/* Offline Alert Banner */}
       {(!isOnline || offlineCount > 0) && (
         <div className="offline-sync-pill">
@@ -847,6 +995,108 @@ export default function CounselorPage() {
           </button>
         </div>
       </header>
+
+      {/* Gamification Level-Up & On-Fire Hub */}
+      <div className="counselor-gamification-card" style={{
+        background: 'var(--card-bg, #ffffff)',
+        border: `1.5px solid ${isOnFire ? '#f59e0b' : 'var(--border, #e2e8f0)'}`,
+        borderRadius: '1rem',
+        padding: '0.9rem 1.15rem',
+        marginBottom: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.8rem',
+        boxShadow: isOnFire ? '0 4px 15px rgba(245, 158, 11, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '0.75rem',
+            background: rankTier?.badge_bg || '#64748b',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.25rem',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          }}>
+            <i className={rankTier?.icon || 'fas fa-shield'} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: rankTier?.color || 'var(--text, #1e293b)' }}>
+                {rankTier?.tier || 'Cadet'}
+              </span>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                background: 'var(--border, #e2e8f0)',
+                color: 'var(--text, #334155)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: '999px',
+              }}>
+                Level {rankTier?.level || 0}
+              </span>
+              {isOnFire && (
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(135deg, #fef3c7, #fed7aa)',
+                  color: '#c2410c',
+                  border: '1px solid #f97316',
+                  padding: '0.15rem 0.55rem',
+                  borderRadius: '999px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                }}>
+                  <i className="fas fa-fire fa-beat" /> ON FIRE
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.3rem' }}>
+              <div style={{ width: '110px', height: '6px', background: 'var(--border, #e2e8f0)', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${rankTier?.progress_pct || 0}%`, height: '100%', background: rankTier?.badge_bg || '#3b82f6', borderRadius: '999px', transition: 'width 0.4s' }} />
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--muted, #64748b)', fontWeight: 600 }}>
+                {rankTier?.sales_needed > 0
+                  ? `${rankTier.sales_needed} more sale to ${rankTier.next_tier}`
+                  : 'Highest Rank Reached!'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            className="btn"
+            disabled={!canSpinWheel}
+            onClick={() => setShowWheelModal(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.55rem 0.95rem',
+              borderRadius: '0.75rem',
+              fontSize: '0.85rem',
+              fontWeight: 800,
+              cursor: canSpinWheel ? 'pointer' : 'not-allowed',
+              background: canSpinWheel ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'var(--border, #e2e8f0)',
+              color: canSpinWheel ? '#ffffff' : 'var(--muted, #94a3b8)',
+              border: 'none',
+              boxShadow: canSpinWheel ? '0 3px 10px rgba(245, 158, 11, 0.35)' : 'none',
+            }}
+            title={canSpinWheel ? 'Spin the Wheel of Fortune!' : 'Close at least 1 sale today to unlock the wheel'}
+          >
+            <i className="fas fa-dharmachakra" />
+            <span>Spin Wheel</span>
+          </button>
+        </div>
+      </div>
 
       {/* Weekly Progress */}
       <WeeklyProgress salesWeek={stats?.sales_week || 0} programTarget={user?.program_target || 0} />

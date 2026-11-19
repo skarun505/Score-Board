@@ -230,7 +230,6 @@ const SETTING_KEYS = [
   'tv_broadcast_message',
   'tv_broadcast_style',
   'tv_broadcast_active',
-  'power_hour_enabled',
 ];
 router.put('/settings', (req, res) => {
   const up = db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
@@ -265,15 +264,6 @@ router.post('/remote-action', (req, res, next) => {
   try {
     const { action } = req.body || {};
     if (!action) throw new HttpError(400, 'Action is required');
-
-    if (action === 'toggle_power_hour') {
-      const current = db.prepare(`SELECT value FROM settings WHERE key = 'power_hour_enabled'`).get()?.value === '1';
-      const nextVal = current ? '0' : '1';
-      db.prepare(`INSERT INTO settings (key, value) VALUES ('power_hour_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(nextVal);
-      audit(req.user.id, 'power_hour.toggle', 'settings', null, { active: nextVal === '1' });
-      refresh(req);
-      return res.json({ ok: true, power_hour: nextVal === '1' });
-    }
 
     const io = req.app.get('io');
     if (io) {

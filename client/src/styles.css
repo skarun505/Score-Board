@@ -5311,3 +5311,413 @@ button {
   }
 }
 
+/* ═════════════════════════════════════════════════════════════════
+   GAMIFICATION SYSTEM (ON FIRE, TL ARENA, 2D DRAG RACE, WHEEL)
+   ═════════════════════════════════════════════════════════════════ */
+
+/* 🔥 On Fire Floor Ticker */
+.tv-onfire-ticker {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.18), rgba(245, 158, 11, 0.15));
+  border: 1.5px solid rgba(245, 158, 11, 0.5);
+  border-radius: 0.9rem;
+  padding: 0.5rem 1.25rem;
+  margin: 0.6rem 0 0.8rem 0;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.25);
+  animation: flamePulse 2.5s infinite ease-in-out;
+  overflow: hidden;
+}
+
+@keyframes flamePulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); border-color: rgba(245, 158, 11, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.5); border-color: rgba(239, 68, 68, 0.8); }
+}
+
+.tv-onfire-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.4);
+  flex-shrink: 0;
+}
+
+.tv-onfire-track {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+.tv-onfire-track::-webkit-scrollbar { display: none; }
+
+.tv-onfire-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.tv-onfire-chip.is-inferno {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.onfire-name { font-weight: 800; color: #f8fafc; }
+.onfire-prog { font-size: 0.78rem; color: #94a3b8; }
+.onfire-sales { font-weight: 900; color: #f59e0b; }
+.onfire-label { font-size: 0.72rem; background: #ef4444; color: #fff; padding: 0.1rem 0.45rem; border-radius: 999px; font-weight: 800; }
+
+/* On Fire Glow in Feed Cards */
+.tv-feed-card.is-on-fire {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), transparent) !important;
+}
+
+.tv-feed-fire-tag {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #f59e0b;
+  color: #fff;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+/* Arena Mode Column Toggle */
+.tv-mode-toggle-btn {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-weight: 800;
+  font-size: 0.76rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tv-mode-toggle-btn:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+/* 🏎️ 2D FLOOR DRAG RACE */
+.tv-arena-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  height: 100%;
+}
+
+.tv-drag-strip-card {
+  background: #0f172a;
+  border: 1.5px solid #1e293b;
+  border-radius: 1rem;
+  padding: 0.75rem 0.95rem;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.4);
+}
+
+.drag-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+}
+
+.drag-strip-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #f1f5f9;
+}
+
+.drag-finish-badge {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px dashed #fbbf24;
+}
+
+.drag-strip-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.drag-lane-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.drag-lane-meta {
+  width: 90px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid #3b82f6;
+  padding-left: 0.45rem;
+}
+
+.drag-lane-team {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drag-lane-pct {
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.drag-lane-asphalt {
+  position: relative;
+  flex: 1;
+  height: 32px;
+  background: #1e293b;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.drag-lane-finish-line {
+  position: absolute;
+  right: 0.4rem;
+  font-size: 1rem;
+  z-index: 1;
+  opacity: 0.85;
+}
+
+.drag-car-sprite {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 2;
+}
+
+.drag-car-icon {
+  font-size: 1.3rem;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+}
+
+.drag-car-crown {
+  position: absolute;
+  top: -10px;
+  left: 2px;
+  font-size: 0.8rem;
+  animation: bounce 1s infinite alternate;
+}
+
+.drag-car-exhaust {
+  position: absolute;
+  right: 18px;
+  width: 22px;
+  height: 5px;
+  border-radius: 999px;
+  filter: blur(1px);
+  animation: exhaustFlicker 0.2s infinite alternate;
+}
+
+@keyframes exhaustFlicker {
+  0% { opacity: 0.6; width: 16px; }
+  100% { opacity: 1; width: 26px; }
+}
+
+/* ⚔️ 4-WAY TL ARENA CARDS */
+.tv-arena-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+}
+
+.tv-arena-stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-top: 3.5px solid #3b82f6;
+  border-radius: 0.85rem;
+  padding: 0.6rem 0.8rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.tv-arena-stat-card.rank-1 {
+  background: linear-gradient(180deg, #ffffff, #fefce8);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
+}
+
+.arena-card-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.arena-rank-col {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.arena-trophy-badge {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.arena-team-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.arena-pct-circle {
+  font-size: 0.82rem;
+  font-weight: 900;
+  border: 1.5px solid;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.arena-mini-progress {
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.45rem;
+}
+
+.arena-mini-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.arena-metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.arena-m-item .m-val b {
+  color: #0f172a;
+}
+
+/* 🎰 WHEEL OF FORTUNE POPUP */
+.tv-wheel-celebrate-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.tv-wheel-popup-card {
+  background: #ffffff;
+  border: 3px solid #fbbf24;
+  border-radius: 1.5rem;
+  padding: 2.2rem 2.8rem;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(251, 191, 36, 0.5);
+  max-width: 520px;
+  width: 90%;
+  animation: scaleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleUp {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.wheel-popup-badge {
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #d97706;
+  margin-bottom: 1.2rem;
+}
+
+.wheel-popup-avatar-ring {
+  margin: 0 auto 1rem auto;
+  width: fit-content;
+  border-radius: 50%;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+}
+
+.wheel-popup-winner-name {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 0.4rem;
+}
+
+.wheel-popup-subkicker {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.9rem;
+}
+
+.wheel-popup-perk-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fefce8;
+  border: 2px solid #f59e0b;
+  border-radius: 1rem;
+  padding: 0.85rem 1.4rem;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #78350f;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+}
+
+.wheel-popup-rarity-pill {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #10b981;
+}
+

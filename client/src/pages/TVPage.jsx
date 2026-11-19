@@ -106,7 +106,9 @@ export default function TVPage() {
   const [lastUpdate, setLastUpdate] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [celebration, setCelebration] = useState(null);
+  const [wheelCelebration, setWheelCelebration] = useState(null);
   const [soundReady, setSoundReady] = useState(isUnlocked());
+  const [tvSlideMode, setTvSlideMode] = useState('champion'); // 'champion' | 'arena'
   const [view, setView] = useState('today');
   const [shift, setShift] = useState({ x: 0, y: 0 });
   const [connError, setConnError] = useState(null);
@@ -236,6 +238,14 @@ export default function TVPage() {
         broadcast: data.active ? { message: data.message, style: data.style } : null
       } : prev);
     });
+    s.on('celebration:wheel', (data) => {
+      setWheelCelebration(data);
+      play('applause', settingsRef.current);
+      fireConfetti(true);
+      setTimeout(() => {
+        setWheelCelebration(null);
+      }, 6500);
+    });
     return () => s.close();
   }, [key]);
 
@@ -261,11 +271,12 @@ export default function TVPage() {
     };
   }, []);
 
-  /* Rotate right panel every 30 seconds across Program-Wise Champions */
+  /* Rotate right panel every 25s between Program Champions and 4-Way TL Arena */
   useEffect(() => {
     const t = setInterval(() => {
+      setTvSlideMode((m) => (m === 'champion' ? 'arena' : 'champion'));
       setProgChampIndex((idx) => idx + 1);
-    }, 30_000);
+    }, 25_000);
     return () => clearInterval(t);
   }, []);
 
@@ -343,6 +354,9 @@ export default function TVPage() {
   const totalL2 = (snap.programs || []).reduce((acc, p) => acc + (p.by_status?.l2_selected || 0), 0);
 
   const topPerformer = leaders.length > 0 ? leaders[0] : null;
+  const tlArena = snap.tl_arena || [];
+  const onFireUsers = snap.on_fire || [];
+  const onFireMap = new Map(onFireUsers.map((u) => [u.id, u]));
 
   return (
     <div
@@ -355,15 +369,6 @@ export default function TVPage() {
       {stale && (
         <div className="tv-stale-banner">
           <i className="fas fa-exclamation-triangle"></i> LIVE FEED DELAYED · Last synchronized {agoSec}s ago · Reconnecting…
-        </div>
-      )}
-
-      {/* Power Hour Mode Banner */}
-      {snap?.power_hour && (
-        <div className="tv-power-hour-banner">
-          <i className="fas fa-fire fa-beat text-gold"></i>
-          <span><b>POWER HOUR ACTIVE!</b> Extra momentum on the floor — crush the targets!</span>
-          <i className="fas fa-bolt fa-beat text-gold"></i>
         </div>
       )}
 
@@ -457,6 +462,27 @@ export default function TVPage() {
         </div>
       </header>
 
+      {/* 🔥 On Fire Heat Streaks Floor Ticker */}
+      {onFireUsers.length > 0 && (
+        <div className="tv-onfire-ticker">
+          <div className="tv-onfire-badge">
+            <i className="fas fa-fire fa-beat" style={{ color: '#f59e0b' }}></i>
+            <span>ON FIRE STREAK</span>
+          </div>
+          <div className="tv-onfire-track">
+            {onFireUsers.map((u) => (
+              <div key={u.id} className={`tv-onfire-chip ${u.level === 'inferno' ? 'is-inferno' : ''}`}>
+                <Avatar p={u} size="1.9em" />
+                <span className="onfire-name">{u.name}</span>
+                <span className="onfire-prog">({getCleanProgramName(u.program)})</span>
+                <span className="onfire-sales">🔥 {u.recent_sales} sales in last 60m!</span>
+                <span className="onfire-label">{u.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main 3-Column Display */}
       <main className="tv-main-grid">
         {/* COLUMN 1: Program Leaderboard */}
@@ -533,112 +559,208 @@ export default function TVPage() {
                 <span className="muted">Updates appear here automatically</span>
               </div>
             ) : (
-              snap.feed.slice(0, 7).map((f) => (
-                <div key={f.id} className={`tv-feed-card ${f.is_sale ? 'is-sale-card' : ''}`}>
-                  <div className="tv-feed-avatar-wrap">
-                    <Avatar p={{ name: f.telecaller, photo_url: f.photo_url }} size="3em" />
-                    {f.is_sale && <span className="tv-feed-star"><i className="fas fa-star"></i></span>}
-                  </div>
-                  <div className="tv-feed-details">
-                    <div className="tv-feed-tc-row">
-                      <span className="tv-feed-caller">{f.telecaller}</span>
-                      <span className="tv-feed-prog-pill" title={f.program}>{getCleanProgramName(f.program)}</span>
+              snap.feed.slice(0, 7).map((f) => {
+                const isHot = onFireUsers.some((u) => u.name === f.telecaller);
+                return (
+                  <div key={f.id} className={`tv-feed-card ${f.is_sale ? 'is-sale-card' : ''} ${isHot ? 'is-on-fire' : ''}`}>
+                    <div className="tv-feed-avatar-wrap">
+                      <Avatar p={{ name: f.telecaller, photo_url: f.photo_url }} size="3em" />
+                      {f.is_sale && <span className="tv-feed-star"><i className="fas fa-star"></i></span>}
+                      {isHot && <span className="tv-feed-fire-tag" title="On Fire!"><i className="fas fa-fire"></i></span>}
                     </div>
-                    <div className="tv-feed-sub"><i className="fas fa-user-tie"></i> TL {f.tl}</div>
+                    <div className="tv-feed-details">
+                      <div className="tv-feed-tc-row">
+                        <span className="tv-feed-caller">{f.telecaller}</span>
+                        <span className="tv-feed-prog-pill" title={f.program}>{getCleanProgramName(f.program)}</span>
+                      </div>
+                      <div className="tv-feed-sub"><i className="fas fa-user-tie"></i> TL {f.tl}</div>
+                    </div>
+                    <div className={`tv-feed-tag ${f.is_sale ? 'sale-tag' : ''}`}>
+                      {f.is_sale ? <span><i className="fas fa-bell"></i> SALE CLOSED</span> : f.label}
+                    </div>
                   </div>
-                  <div className={`tv-feed-tag ${f.is_sale ? 'sale-tag' : ''}`}>
-                    {f.is_sale ? <span><i className="fas fa-bell"></i> SALE CLOSED</span> : f.label}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>
 
-        {/* COLUMN 3: Program-Wise Champion / Lead (Rotates every 30s) */}
-        <section className="tv-column tv-performers-col">
+        {/* COLUMN 3: Program Champions OR 4-Way Team Leader Arena & Drag Race */}
+        <section className={`tv-column tv-performers-col ${tvSlideMode === 'arena' ? 'tv-arena-mode' : ''}`}>
           <div className="tv-col-header">
             <div className="tv-col-title-wrap">
-              <i className="fas fa-crown tv-col-icon" style={{ color: '#f59e0b' }}></i>
-              <h2>{currentProgChamp ? getCleanProgramName(currentProgChamp.program_name) : 'PROGRAM'} LEAD</h2>
+              <i className={`fas ${tvSlideMode === 'arena' ? 'fa-flag-checkered' : 'fa-crown'} tv-col-icon`}
+                 style={{ color: tvSlideMode === 'arena' ? '#38bdf8' : '#f59e0b' }}></i>
+              <h2>{tvSlideMode === 'arena' ? '⚔️ TL ARENA & DRAG RACE' : `${currentProgChamp ? getCleanProgramName(currentProgChamp.program_name) : 'PROGRAM'} LEAD`}</h2>
             </div>
-            <span className="tv-rot-badge" title="Rotates program-wise champion every 30 seconds">
-              <i className="fas fa-rotate fa-spin-pulse"></i> 30s · {((progChampIndex % Math.max(1, programChampions.length)) + 1)}/{programChampions.length || 1}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45em' }}>
+              <button
+                className="tv-mode-toggle-btn"
+                onClick={() => setTvSlideMode((m) => (m === 'champion' ? 'arena' : 'champion'))}
+                title="Toggle between Program Lead and Team Leader Arena"
+              >
+                {tvSlideMode === 'arena' ? '👑 Show Champions' : '⚔️ Show Arena'}
+              </button>
+              <span className="tv-rot-badge" title="Auto-rotates every 25 seconds">
+                <i className="fas fa-rotate fa-spin-pulse"></i> 25s
+              </span>
+            </div>
           </div>
 
-          {/* Program Batch Target & Progress Strip */}
-          {currentProgChamp && (
-            <div className="tv-prog-champ-batch-strip">
-              <div className="strip-left">
-                <i className="fas fa-layer-group text-primary"></i>
-                <span className="strip-batch-name">{currentProgChamp.batch_name || 'Active Batch'}</span>
+          {tvSlideMode === 'arena' ? (
+            /* ⚔️ THE FLOOR WAR: 4-WAY TL ARENA & 🏎️ 2D FLOOR DRAG RACE */
+            <div className="tv-arena-wrapper">
+              {/* 🏎️ 2D Floor Drag Race Strip */}
+              <div className="tv-drag-strip-card">
+                <div className="drag-strip-header">
+                  <div className="drag-strip-title">
+                    <i className="fas fa-flag-checkered text-warning"></i>
+                    <span>2D FLOOR DRAG RACE (TO 100% TARGET)</span>
+                  </div>
+                  <span className="drag-finish-badge">🏁 100% FINISH</span>
+                </div>
+                <div className="drag-strip-lanes">
+                  {tlArena.map((team) => {
+                    const carLeft = Math.min(88, Math.max(3, team.target_pct));
+                    const isFirst = team.rank === 1;
+                    return (
+                      <div key={team.tl_id} className="drag-lane-row">
+                        <div className="drag-lane-meta" style={{ borderLeftColor: team.color }}>
+                          <span className="drag-lane-team">{team.team_name.replace('Team ', '')}</span>
+                          <span className="drag-lane-pct" style={{ color: team.color }}>{team.target_pct}%</span>
+                        </div>
+                        <div className="drag-lane-asphalt">
+                          <div className="drag-lane-finish-line">🏁</div>
+                          <div
+                            className={`drag-car-sprite ${isFirst ? 'leader-car' : ''}`}
+                            style={{
+                              left: `${carLeft}%`,
+                              borderColor: team.color,
+                            }}
+                            title={`${team.team_name}: ${team.batch_sales}/${team.batch_target} (${team.target_pct}%)`}
+                          >
+                            {isFirst && <span className="drag-car-crown">👑</span>}
+                            <span className="drag-car-icon">🏎️</span>
+                            <span className="drag-car-exhaust" style={{ background: `linear-gradient(to left, ${team.color}, transparent)` }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="strip-right">
-                <span className="strip-target">
-                  Batch: <b>{currentProgChamp.batch_sales || 0}</b> / {currentProgChamp.batch_target || 0} Sales
-                </span>
-                <span className="strip-pct">
-                  ({Math.round(((currentProgChamp.batch_sales || 0) / (currentProgChamp.batch_target || 1)) * 100)}%)
-                </span>
-              </div>
-            </div>
-          )}
 
-          {/* Spotlight on #1 Lead of This Program */}
-          {currentProgChamp?.top_performer ? (
-            <div className="tv-top-spotlight">
-              <div className="spotlight-crown">
-                <i className="fas fa-trophy"></i> #1 PROGRAM LEAD · {getCleanProgramName(currentProgChamp.program_name)}
-              </div>
-              <div className="spotlight-body">
-                <Avatar p={currentProgChamp.top_performer} size="4.4em" />
-                <div className="spotlight-info">
-                  <div className="spotlight-name">{currentProgChamp.top_performer.name}</div>
-                  <div className="spotlight-prog" title={currentProgChamp.top_performer.program}>
-                    <i className="fas fa-building"></i> {getCleanProgramName(currentProgChamp.top_performer.program)}
+              {/* ⚔️ 4-Way Team Leader Arena Standings Cards */}
+              <div className="tv-arena-cards-grid">
+                {tlArena.map((team) => (
+                  <div key={team.tl_id} className={`tv-arena-stat-card rank-${team.rank}`} style={{ borderTopColor: team.color }}>
+                    <div className="arena-card-hdr">
+                      <div className="arena-rank-col">
+                        <span className="arena-trophy-badge">{team.trophy}</span>
+                        <div className="arena-team-title" style={{ color: team.color }}>{team.team_name}</div>
+                      </div>
+                      <div className="arena-pct-circle" style={{ borderColor: team.color, color: team.color }}>
+                        {team.target_pct}%
+                      </div>
+                    </div>
+                    <div className="arena-mini-progress">
+                      <div className="arena-mini-fill" style={{ width: `${Math.min(100, team.target_pct)}%`, background: team.color }} />
+                    </div>
+                    <div className="arena-metrics-row">
+                      <div className="arena-m-item">
+                        <span className="m-lbl">Batch Sales</span>
+                        <span className="m-val"><b>{team.batch_sales}</b> / {team.batch_target}</span>
+                      </div>
+                      <div className="arena-m-item">
+                        <span className="m-lbl">Avg / Caller</span>
+                        <span className="m-val"><b>{team.avg_per_counselor}</b></span>
+                      </div>
+                      <div className="arena-m-item">
+                        <span className="m-lbl">Counselors</span>
+                        <span className="m-val">{team.counselor_count} active</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="spotlight-conversion">
-                    <i className="fas fa-bullseye"></i> {currentProgChamp.top_performer.conversion}% Conversion Rate
-                  </div>
-                </div>
-                <div className="spotlight-sales">
-                  <span className="spotlight-num">{currentProgChamp.top_performer.sales}</span>
-                  <span className="spotlight-lbl">SALES</span>
-                </div>
+                ))}
               </div>
             </div>
           ) : (
-            <div className="tv-empty-card" style={{ padding: '1.2em 0.8em', marginBottom: '0.45em' }}>
-              <i className="fas fa-medal" style={{ fontSize: '1.8em', color: '#f59e0b', marginBottom: '0.25em' }}></i>
-              <p style={{ fontWeight: 800, margin: 0 }}>Be the first to score in {currentProgChamp?.program_name || 'this program'}!</p>
-              <span className="muted" style={{ fontSize: '0.85em' }}>Batch: {currentProgChamp?.batch_name} (Target: {currentProgChamp?.batch_target || 0}) · First sale wins the crown!</span>
-            </div>
-          )}
+            /* 👑 PROGRAM CHAMPIONS & LEAD SPOTLIGHT */
+            <>
+              {/* Program Batch Target & Progress Strip */}
+              {currentProgChamp && (
+                <div className="tv-prog-champ-batch-strip">
+                  <div className="strip-left">
+                    <i className="fas fa-layer-group text-primary"></i>
+                    <span className="strip-batch-name">{currentProgChamp.batch_name || 'Active Batch'}</span>
+                  </div>
+                  <div className="strip-right">
+                    <span className="strip-target">
+                      Batch: <b>{currentProgChamp.batch_sales || 0}</b> / {currentProgChamp.batch_target || 0} Sales
+                    </span>
+                    <span className="strip-pct">
+                      ({Math.round(((currentProgChamp.batch_sales || 0) / (currentProgChamp.batch_target || 1)) * 100)}%)
+                    </span>
+                  </div>
+                </div>
+              )}
 
-          {/* Program Counselor Leaderboard */}
-          <div className="tv-champions-list">
-            {!currentProgChamp?.leaders || currentProgChamp.leaders.length <= 1 ? (
-              <div className="tv-empty-card">
-                <p>Waiting for more sales in {currentProgChamp?.program_name || 'program'}…</p>
-                <span className="muted">Next sale enters the leaderboard</span>
-              </div>
-            ) : (
-              currentProgChamp.leaders.slice(1, 7).map((l, idx) => (
-                <div key={l.id} className="tv-leader-row">
-                  <div className="tv-leader-rank">#{idx + 2}</div>
-                  <Avatar p={l} size="2.4em" />
-                  <div className="tv-leader-info">
-                    <div className="tv-leader-name">{l.name}</div>
-                    <div className="tv-leader-prog">
-                      {l.conversion}% conv · {currentProgChamp.batch_name}
+              {/* Spotlight on #1 Lead of This Program */}
+              {currentProgChamp?.top_performer ? (
+                <div className="tv-top-spotlight">
+                  <div className="spotlight-crown">
+                    <i className="fas fa-trophy"></i> #1 PROGRAM LEAD · {getCleanProgramName(currentProgChamp.program_name)}
+                  </div>
+                  <div className="spotlight-body">
+                    <Avatar p={currentProgChamp.top_performer} size="4.4em" />
+                    <div className="spotlight-info">
+                      <div className="spotlight-name">{currentProgChamp.top_performer.name}</div>
+                      <div className="spotlight-prog" title={currentProgChamp.top_performer.program}>
+                        <i className="fas fa-building"></i> {getCleanProgramName(currentProgChamp.top_performer.program)}
+                      </div>
+                      <div className="spotlight-conversion">
+                        <i className="fas fa-bullseye"></i> {currentProgChamp.top_performer.conversion}% Conversion Rate
+                      </div>
+                    </div>
+                    <div className="spotlight-sales">
+                      <span className="spotlight-num">{currentProgChamp.top_performer.sales}</span>
+                      <span className="spotlight-lbl">SALES</span>
                     </div>
                   </div>
-                  <div className="tv-leader-sales">{l.sales}</div>
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                <div className="tv-empty-card" style={{ padding: '1.2em 0.8em', marginBottom: '0.45em' }}>
+                  <i className="fas fa-medal" style={{ fontSize: '1.8em', color: '#f59e0b', marginBottom: '0.25em' }}></i>
+                  <p style={{ fontWeight: 800, margin: 0 }}>Be the first to score in {currentProgChamp?.program_name || 'this program'}!</p>
+                  <span className="muted" style={{ fontSize: '0.85em' }}>Batch: {currentProgChamp?.batch_name} (Target: {currentProgChamp?.batch_target || 0}) · First sale wins the crown!</span>
+                </div>
+              )}
+
+              {/* Program Counselor Leaderboard */}
+              <div className="tv-champions-list">
+                {!currentProgChamp?.leaders || currentProgChamp.leaders.length <= 1 ? (
+                  <div className="tv-empty-card">
+                    <p>Waiting for more sales in {currentProgChamp?.program_name || 'program'}…</p>
+                    <span className="muted">Next sale enters the leaderboard</span>
+                  </div>
+                ) : (
+                  currentProgChamp.leaders.slice(1, 7).map((l, idx) => (
+                    <div key={l.id} className="tv-leader-row">
+                      <div className="tv-leader-rank">#{idx + 2}</div>
+                      <Avatar p={l} size="2.4em" />
+                      <div className="tv-leader-info">
+                        <div className="tv-leader-name">{l.name}</div>
+                        <div className="tv-leader-prog">
+                          {l.conversion}% conv · {currentProgChamp.batch_name}
+                        </div>
+                      </div>
+                      <div className="tv-leader-sales">{l.sales}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </section>
       </main>
 
@@ -707,6 +829,30 @@ export default function TVPage() {
 
       {/* Full-Screen Mind-Blowing Celebration Modal */}
       {celebration && <CelebrationModal {...celebration} onClose={() => setCelebration(null)} />}
+
+      {/* 🎰 Wheel of Fortune Live TV Celebration Pop-up */}
+      {wheelCelebration && (
+        <div className="tv-wheel-celebrate-overlay" onClick={() => setWheelCelebration(null)}>
+          <div className="celebrate-backdrop-glow" />
+          <div className="tv-wheel-popup-card" onClick={(e) => e.stopPropagation()}>
+            <div className="wheel-popup-badge">
+              <i className="fas fa-dharmachakra fa-spin text-warning"></i> WHEEL OF FORTUNE UNLOCKED!
+            </div>
+            <div className="wheel-popup-avatar-ring">
+              <Avatar p={{ name: wheelCelebration.counselor_name, photo_url: wheelCelebration.photo_url }} big />
+            </div>
+            <div className="wheel-popup-winner-name">{wheelCelebration.counselor_name}</div>
+            <div className="wheel-popup-subkicker">SPUN THE WHEEL AND UNLOCKED:</div>
+            <div className="wheel-popup-perk-box" style={{ borderColor: wheelCelebration.color || '#f59e0b' }}>
+              <i className={`fas ${wheelCelebration.icon || 'fa-gift'}`} style={{ color: wheelCelebration.color || '#f59e0b' }}></i>
+              <span>{wheelCelebration.perk}</span>
+            </div>
+            <div className="wheel-popup-rarity-pill">
+              ⭐ {wheelCelebration.rarity} Reward · Floor Celebration! 🎉
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

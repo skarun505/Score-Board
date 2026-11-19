@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db, businessDate } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { recordEvent, undoEvent, getEventView, UNDO_SECONDS } from '../services/events.js';
-import { getSnapshot } from '../services/dashboard.js';
+import { getSnapshot, calculateCounselorRankTier, calculateBadges } from '../services/dashboard.js';
 import { cloudSync } from '../services/cloudSync.js';
 
 const router = Router();
@@ -99,6 +99,23 @@ router.get('/counselor/me', requireAuth(['telecaller', 'tl', 'admin']), (req, re
   `).get(today);
   stats.active_callers_today = activeTodayRow?.cnt || 0;
 
+  // RPG Rank Tier Progression
+  const rankTier = calculateCounselorRankTier(stats.sales_today || 0);
+
+  // Check if counselor is On Fire (2+ sales in last 60 minutes)
+  const cutoff = new Date(Date.now() - 60 * 60_000).toISOString();
+  const recentSalesHour = db.prepare(`
+    SELECT COUNT(*) as n FROM events e
+    JOIN statuses s ON s.id = e.status_id
+    WHERE e.telecaller_id = ? AND e.voided = 0 AND s.is_sale = 1 AND e.created_at >= ?
+  `).get(tcId, cutoff)?.n || 0;
+
+  const isOnFire = recentSalesHour >= 2;
+
+  const yday = businessDate(new Date(now.getTime() - 86400_000));
+  const floorBadges = calculateBadges(today, yday);
+  const counselorBadges = floorBadges[tcId] || [];
+
   const recent = db.prepare(`
     SELECT e.id, e.created_at, e.lead_ref, s.code, s.label, s.color, s.is_sale
     FROM events e
@@ -109,7 +126,56 @@ router.get('/counselor/me', requireAuth(['telecaller', 'tl', 'admin']), (req, re
   res.json({
     user,
     stats,
+    rank_tier: rankTier,
+    is_on_fire: isOnFire,
+    recent_sales_last_hour: recentSalesHour,
+    badges: counselorBadges,
+    can_spin_wheel: (stats.sales_today || 0) >= 1,
     recent,
+  });
+});
+
+const WHEEL_PERKS = [
+  { id: 'coffee', label: '☕ Team Leader Buys You Coffee', rarity: 'Rare', icon: 'fa-mug-hot', color: '#d97706' },
+  { id: 'applause', label: '👏 Floor-Wide Standing Ovation', rarity: 'Legendary', icon: 'fa-hands-clapping', color: '#8b5cf6' },
+  { id: 'early_break', label: '🚀 15-Minute Early Friday Logout', rarity: 'Epic', icon: 'fa-rocket', color: '#10b981' },
+  { id: 'hall_of_fame', label: '⭐ Featured Star on 108" TV', rarity: 'Legendary', icon: 'fa-star', color: '#f59e0b' },
+  { id: 'music_choice', label: '🎧 Floor Music Playlist Choice', rarity: 'Rare', icon: 'fa-headphones', color: '#3b82f6' },
+  { id: 'chocolate', label: '🍫 Gourmet Chocolate / Snack', rarity: 'Common', icon: 'fa-cookie-bite', color: '#ec4899' },
+];
+
+router.post(['/counselor/spin-wheel', '/events/counselor/spin-wheel'], requireAuth(['telecaller', 'tl', 'admin']), (req, res) => {
+  const tcId = req.user.id;
+  const today = businessDate();
+  const salesToday = db.prepare(`
+    SELECT COUNT(*) AS n FROM events e
+    JOIN statuses s ON s.id = e.status_id
+    WHERE e.telecaller_id = ? AND e.business_date = ? AND e.voided = 0 AND s.is_sale = 1
+  `).get(tcId, today)?.n || 0;
+
+  if (salesToday < 1) {
+    return res.status(400).json({ error: 'Close at least 1 sale today to unlock the Wheel of Fortune!' });
+  }
+
+  const selectedPerk = WHEEL_PERKS[Math.floor(Math.random() * WHEEL_PERKS.length)];
+
+  // Broadcast celebration to TV
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('celebration:wheel', {
+      counselor_name: req.user.name,
+      photo_url: req.user.photo_url || null,
+      perk: selectedPerk.label,
+      rarity: selectedPerk.rarity,
+      icon: selectedPerk.icon,
+      color: selectedPerk.color,
+    });
+  }
+
+  res.json({
+    ok: true,
+    perk: selectedPerk,
+    message: `🎉 Congratulations! You unlocked: ${selectedPerk.label}`,
   });
 });
 

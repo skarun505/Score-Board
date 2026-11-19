@@ -43,7 +43,6 @@ export default function AdminPage() {
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastStyle, setBroadcastStyle] = useState('info');
   const [broadcastActive, setBroadcastActive] = useState(false);
-  const [powerHour, setPowerHour] = useState(false);
   const [systemHealth, setSystemHealth] = useState(null);
   const [remoteStatus, setRemoteStatus] = useState('');
   const [restoreStatus, setRestoreStatus] = useState(null);
@@ -172,7 +171,6 @@ export default function AdminPage() {
       setBroadcastMsg(st.tv_broadcast_message || '');
       setBroadcastStyle(st.tv_broadcast_style || 'info');
       setBroadcastActive(st.tv_broadcast_active === '1');
-      setPowerHour(st.power_hour_enabled === '1');
       fetchAnalytics(analyticsMonth);
       fetchSystemHealth();
       fetchCloudSyncStatus();
@@ -823,15 +821,6 @@ export default function AdminPage() {
                 >
                   <i className="fas fa-redo-alt"></i>
                   <span>Force Reload TVs</span>
-                </button>
-
-                <button
-                  type="button"
-                  className={`btn-remote fire ${powerHour ? 'active-fire' : ''}`}
-                  onClick={() => handleRemoteAction('toggle_power_hour')}
-                >
-                  <i className="fas fa-fire"></i>
-                  <span>{powerHour ? 'Power Hour ON' : 'Trigger Power Hour'}</span>
                 </button>
               </div>
 
