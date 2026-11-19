@@ -174,6 +174,94 @@ export function ensureDefaultBatches() {
   }
 }
 
+export function autoHydrateInitialSeed() {
+  try {
+    const eventCount = db.prepare('SELECT count(*) as c FROM events').get()?.c || 0;
+    if (eventCount > 0) return; // already has data, preserve it
+
+    const seedPath = path.resolve(serverDir, 'seeds', 'production-seed.json');
+    if (!fs.existsSync(seedPath)) return;
+
+    const data = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+    if (!data || !Array.isArray(data.events) || data.events.length === 0) return;
+
+    console.log(`🌱 [Seed] Auto-hydrating ${data.events.length} production sales and batches from production-seed.json...`);
+
+    // In SQLite, PRAGMA foreign_keys must be toggled outside of an active transaction
+    db.pragma('foreign_keys = OFF');
+
+    const runImport = db.transaction(() => {
+      // Clean child tables first, then parents
+      try { db.prepare('DELETE FROM daily_adjustments').run(); } catch {}
+      try { db.prepare('DELETE FROM user_logins').run(); } catch {}
+      try { db.prepare('DELETE FROM events').run(); } catch {}
+      try { db.prepare('DELETE FROM batches').run(); } catch {}
+      try { db.prepare('DELETE FROM users').run(); } catch {}
+      try { db.prepare('DELETE FROM programs').run(); } catch {}
+
+      // Insert parents first
+      if (Array.isArray(data.programs) && data.programs.length > 0) {
+        const insProg = db.prepare('INSERT INTO programs (id, name, daily_target, active) VALUES (?, ?, ?, ?)');
+        for (const p of data.programs) {
+          insProg.run(p.id, p.name, p.daily_target ?? 0, p.active ?? 1);
+        }
+      }
+
+      if (Array.isArray(data.users) && data.users.length > 0) {
+        const insUser = db.prepare(`
+          INSERT INTO users (id, name, role, employee_code, pin_hash, program_id, tl_id, photo_url, birthday, hire_date, active)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const u of data.users) {
+          insUser.run(u.id, u.name, u.role, u.employee_code, u.pin_hash, u.program_id, u.tl_id, u.photo_url, u.birthday, u.hire_date, u.active ?? 1);
+        }
+      }
+
+      if (Array.isArray(data.batches) && data.batches.length > 0) {
+        const insBatch = db.prepare(`
+          INSERT INTO batches (id, name, program_id, target, active, start_date, end_date, created_by, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const b of data.batches) {
+          insBatch.run(b.id, b.name, b.program_id, b.target ?? 0, b.active ?? 1, b.start_date, b.end_date, b.created_by, b.created_at || new Date().toISOString());
+        }
+      }
+
+      if (Array.isArray(data.events) && data.events.length > 0) {
+        const insEvent = db.prepare(`
+          INSERT INTO events (id, telecaller_id, program_id, tl_id, status_id, lead_ref, created_by, created_at, business_date, voided, voided_by, voided_at, void_reason, batch_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const e of data.events) {
+          insEvent.run(
+            e.id, e.telecaller_id, e.program_id, e.tl_id, e.status_id, e.lead_ref,
+            e.created_by, e.created_at, e.business_date, e.voided ?? 0,
+            e.voided_by, e.voided_at, e.void_reason, e.batch_id ?? null
+          );
+        }
+      }
+
+      if (Array.isArray(data.daily_adjustments) && data.daily_adjustments.length > 0) {
+        const insAdj = db.prepare(`
+          INSERT INTO daily_adjustments (id, telecaller_id, status_code, business_date, adjusted_by, old_count, new_count, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const a of data.daily_adjustments) {
+          insAdj.run(a.id, a.telecaller_id, a.status_code, a.business_date, a.adjusted_by, a.old_count, a.new_count, a.created_at);
+        }
+      }
+    });
+
+    runImport();
+    db.pragma('foreign_keys = ON');
+    console.log('✅ [Seed] Successfully initialized database with current production floor data!');
+  } catch (err) {
+    db.pragma('foreign_keys = ON');
+    console.error('⚠️ [Seed] Auto-hydration error:', err.message);
+  }
+}
+
+autoHydrateInitialSeed();
 ensureDefaultBatches();
 
 /**
