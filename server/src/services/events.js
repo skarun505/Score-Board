@@ -1,4 +1,5 @@
 import { db, businessDate, audit } from '../db.js';
+import { cloudSync } from './cloudSync.js';
 
 export const UNDO_SECONDS = Number(process.env.UNDO_WINDOW_SEC || 10);
 const DUP_SECONDS = Number(process.env.DUPLICATE_WINDOW_SEC || 20);
@@ -104,6 +105,12 @@ export function recordEvent({ actor, telecallerId, statusCode, leadRef, confirmD
   const id = Number(info.lastInsertRowid);
   audit(actor.id, 'event.create', 'event', id, { telecaller: tc.name, status: st.code });
 
+  // Tier 2 Cloud PostgreSQL Write-Through Replication
+  try {
+    const createdRecord = db.prepare('SELECT * FROM events WHERE id = ?').get(id);
+    if (createdRecord) cloudSync.queueMutation('events', 'INSERT', createdRecord);
+  } catch {}
+
   return { id, milestone: st.is_sale ? detectMilestone(tc.program_id) : null };
 }
 
@@ -113,6 +120,12 @@ export function voidEvent(actor, id, reason) {
   db.prepare(`UPDATE events SET voided = 1, voided_by = ?, voided_at = ?, void_reason = ? WHERE id = ?`)
     .run(actor.id, new Date().toISOString(), reason || null, id);
   audit(actor.id, 'event.void', 'event', id, { reason });
+
+  // Tier 2 Cloud PostgreSQL Write-Through Replication
+  try {
+    const updatedRecord = db.prepare('SELECT * FROM events WHERE id = ?').get(id);
+    if (updatedRecord) cloudSync.queueMutation('events', 'UPDATE', updatedRecord);
+  } catch {}
 }
 
 export function undoEvent(actor, id) {

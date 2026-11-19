@@ -24,6 +24,7 @@ import eventRoutes from './routes/events.js';
 import adminRoutes from './routes/admin.js';
 import profileRoutes from './routes/profile.js';
 import tlRoutes from './routes/tl.js';
+import { cloudSync } from './services/cloudSync.js';
 
 const origins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true;
 
@@ -79,6 +80,11 @@ const runDailyBackup = () => {
 const backupTimer = setInterval(runDailyBackup, 24 * 3600 * 1000);
 if (backupTimer.unref) backupTimer.unref();
 setTimeout(runDailyBackup, 5000); // Quick initial backup verification on start
+
+/* Tier 2 Cloud PostgreSQL Hybrid Sync Engine */
+if (process.env.NODE_ENV !== 'test') {
+  cloudSync.init().catch((err) => console.error('[CloudSync] Init error:', err.message));
+}
 
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 app.get('/api/dashboard', tvOrAuth, (req, res) => res.json(getSnapshot()));

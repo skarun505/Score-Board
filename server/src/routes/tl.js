@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db, businessDate, audit } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getSnapshot } from '../services/dashboard.js';
+import { cloudSync } from '../services/cloudSync.js';
 
 const router = Router();
 router.use(requireAuth(['tl', 'admin']));
@@ -10,6 +11,7 @@ router.use(requireAuth(['tl', 'admin']));
 const refresh = (req) => {
   const io = req.app.get('io');
   if (io) io.emit('snapshot', getSnapshot());
+  setImmediate(() => cloudSync.reconcileHighWaterMark().catch(() => {}));
 };
 
 /**

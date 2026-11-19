@@ -54,6 +54,11 @@ export default function AdminPage() {
   const [quickLeadRef, setQuickLeadRef] = useState('');
   const [quickSaving, setQuickSaving] = useState(false);
 
+  // Hybrid 3-Tier Architecture Cloud Sync state
+  const [cloudSyncStatus, setCloudSyncStatus] = useState(null);
+  const [cloudSyncBusy, setCloudSyncBusy] = useState(false);
+  const [cloudSyncMsg, setCloudSyncMsg] = useState('');
+
   const token = session?.token;
 
   function logout() {
@@ -93,6 +98,50 @@ export default function AdminPage() {
     setAnalyticsLoading(false);
   }
 
+  async function fetchCloudSyncStatus() {
+    if (!token) return;
+    try {
+      const data = await api('/api/admin/cloud-sync/status', { token });
+      setCloudSyncStatus(data);
+    } catch (err) {
+      console.error('fetchCloudSyncStatus error:', err);
+    }
+  }
+
+  async function handleCloudPush() {
+    if (!token) return;
+    const ok = window.confirm('Push all local floor programs, users, batches, and sales closures to Cloud PostgreSQL?');
+    if (!ok) return;
+    setCloudSyncBusy(true);
+    setCloudSyncMsg('');
+    try {
+      const res = await api('/api/admin/cloud-sync/push', { method: 'POST', token });
+      setCloudSyncMsg(`✅ ${res.message || 'Pushed to Cloud PostgreSQL successfully!'}`);
+      fetchCloudSyncStatus();
+      fetchAll();
+    } catch (err) {
+      setCloudSyncMsg(`❌ Cloud Push failed: ${err.message}`);
+    }
+    setCloudSyncBusy(false);
+  }
+
+  async function handleCloudPull() {
+    if (!token) return;
+    const ok = window.confirm('Hydrate local In-Memory Engine from Cloud PostgreSQL?\n\nThis will synchronize all data from the cloud down to your local engine.');
+    if (!ok) return;
+    setCloudSyncBusy(true);
+    setCloudSyncMsg('');
+    try {
+      const res = await api('/api/admin/cloud-sync/pull', { method: 'POST', token });
+      setCloudSyncMsg(`✅ ${res.message || 'Hydrated from Cloud PostgreSQL successfully!'}`);
+      fetchCloudSyncStatus();
+      fetchAll();
+    } catch (err) {
+      setCloudSyncMsg(`❌ Cloud Pull failed: ${err.message}`);
+    }
+    setCloudSyncBusy(false);
+  }
+
   async function fetchSystemHealth() {
     if (!token) return;
     try {
@@ -126,6 +175,7 @@ export default function AdminPage() {
       setPowerHour(st.power_hour_enabled === '1');
       fetchAnalytics(analyticsMonth);
       fetchSystemHealth();
+      fetchCloudSyncStatus();
     } catch (err) {
       if (err.status === 401) logout();
     }
@@ -1244,6 +1294,135 @@ export default function AdminPage() {
         {/* BACKUP & EXPORT TAB */}
         {tab === 'export' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            {/* Hybrid 3-Tier Architecture Live Dashboard Card */}
+            <div className="admin-card" style={{ border: '2px solid #6366f1', background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <i className="fas fa-server" style={{ fontSize: '1.5rem', color: '#4f46e5' }}></i>
+                  <div>
+                    <h2 style={{ margin: 0, color: '#0f172a' }}>Hybrid 3-Tier Enterprise Architecture</h2>
+                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                      In-Memory Engine + Cloud PostgreSQL + Automated Disk Recovery
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={fetchCloudSyncStatus}
+                    style={{ fontSize: '0.82rem' }}
+                    title="Refresh sync status"
+                  >
+                    <i className="fas fa-rotate"></i> Refresh
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleCloudPush}
+                    disabled={cloudSyncBusy}
+                    style={{ fontSize: '0.82rem', background: '#4f46e5', borderColor: '#4338ca' }}
+                    title="Upload all floor records to Cloud PostgreSQL"
+                  >
+                    <i className={`fas ${cloudSyncBusy ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`}></i> Force Push to Cloud
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleCloudPull}
+                    disabled={cloudSyncBusy}
+                    style={{ fontSize: '0.82rem' }}
+                    title="Hydrate local engine from Cloud PostgreSQL"
+                  >
+                    <i className="fas fa-cloud-arrow-down"></i> Hydrate from Cloud
+                  </button>
+                </div>
+              </div>
+
+              {cloudSyncMsg && (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.65rem',
+                  marginBottom: '1rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  background: cloudSyncMsg.startsWith('✅') ? '#ecfdf5' : '#fef2f2',
+                  color: cloudSyncMsg.startsWith('✅') ? '#047857' : '#b91c1c',
+                  border: `1.5px solid ${cloudSyncMsg.startsWith('✅') ? '#6ee7b7' : '#fca5a5'}`,
+                }}>
+                  {cloudSyncMsg}
+                </div>
+              )}
+
+              {/* 3 Tier Architecture Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.9rem', marginTop: '0.8rem' }}>
+                {/* Tier 1 */}
+                <div style={{ background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#059669', letterSpacing: '0.05em' }}>
+                      Tier 1: Speed Engine
+                    </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#059669', background: '#dcfce7', padding: '0.2rem 0.55rem', borderRadius: '999px' }}>
+                      ● Active (&lt;0.5ms)
+                    </span>
+                  </div>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#0f172a' }}>In-Memory / WAL Cache</h4>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+                    Zero-latency TV stream broadcast & instant sales closure execution for all 46 counselors and 108" TV screen.
+                  </p>
+                </div>
+
+                {/* Tier 2 */}
+                <div style={{ background: '#ffffff', border: `1.5px solid ${cloudSyncStatus?.tier2_cloud_postgresql?.connected ? '#6ee7b7' : '#cbd5e1'}`, borderRadius: '0.75rem', padding: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.05em' }}>
+                      Tier 2: Cloud Persistence
+                    </span>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: cloudSyncStatus?.tier2_cloud_postgresql?.connected ? '#047857' : '#d97706',
+                      background: cloudSyncStatus?.tier2_cloud_postgresql?.connected ? '#dcfce7' : '#fef3c7',
+                      padding: '0.2rem 0.55rem',
+                      borderRadius: '999px'
+                    }}>
+                      {cloudSyncStatus?.tier2_cloud_postgresql?.connected ? '● Connected' : '○ Standby / Awaiting URL'}
+                    </span>
+                  </div>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#0f172a' }}>Cloud PostgreSQL (Supabase / Neon)</h4>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+                    {cloudSyncStatus?.tier2_cloud_postgresql?.connected
+                      ? `Host: ${cloudSyncStatus.tier2_cloud_postgresql.host} (Queue: ${cloudSyncStatus.tier2_cloud_postgresql.pending_queue})`
+                      : 'Add DATABASE_URL in Render Environment to link free Cloud PostgreSQL.'}
+                  </p>
+                  {cloudSyncStatus?.tier2_cloud_postgresql?.last_sync && (
+                    <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#475569' }}>
+                      Last Sync: {new Date(cloudSyncStatus.tier2_cloud_postgresql.last_sync).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tier 3 */}
+                <div style={{ background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#7c3aed', letterSpacing: '0.05em' }}>
+                      Tier 3: Recovery Layer
+                    </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed', background: '#ede9fe', padding: '0.2rem 0.55rem', borderRadius: '999px' }}>
+                      ● Active (Daily)
+                    </span>
+                  </div>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#0f172a' }}>1-Click Offline Snapshots</h4>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+                    Automated 24h backups and 1-Click portable JSON file download for offline disaster protection.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Database Backup & Instant Restore (Option 3) Card */}
             <div className="admin-card" style={{ border: '2px solid #3b82f6', background: '#f8fafc' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>

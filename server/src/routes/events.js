@@ -3,6 +3,7 @@ import { db, businessDate } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { recordEvent, undoEvent, getEventView, UNDO_SECONDS } from '../services/events.js';
 import { getSnapshot } from '../services/dashboard.js';
+import { cloudSync } from '../services/cloudSync.js';
 
 const router = Router();
 
@@ -224,12 +225,19 @@ router.post(['/counselor/custom-count', '/counselors/custom-count', '/events/cou
       SET old_count = ?, new_count = ?, adjusted_by = ?, created_at = ?
       WHERE id = ?
     `).run(currentCount, newCount, req.user.id, nowIso, existingAdj.id);
+    const updated = db.prepare('SELECT * FROM daily_adjustments WHERE id = ?').get(existingAdj.id);
+    if (updated) cloudSync.queueMutation('daily_adjustments', 'UPDATE', updated);
   } else {
-    db.prepare(`
+    const info = db.prepare(`
       INSERT INTO daily_adjustments (telecaller_id, status_code, business_date, adjusted_by, old_count, new_count, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(counselorId, status_code, today, req.user.id, currentCount, newCount, nowIso);
+    const created = db.prepare('SELECT * FROM daily_adjustments WHERE id = ?').get(info.lastInsertRowid);
+    if (created) cloudSync.queueMutation('daily_adjustments', 'INSERT', created);
   }
+
+  // Trigger high-water mark sync to capture any bulk-inserted/voided custom count events
+  setImmediate(() => cloudSync.reconcileHighWaterMark().catch(() => {}));
 
   const io = req.app.get('io');
   if (io) io.emit('snapshot', getSnapshot());

@@ -6,12 +6,14 @@ import { db, dbPath, audit, businessDate } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { voidEvent, HttpError } from '../services/events.js';
 import { getSnapshot } from '../services/dashboard.js';
+import { cloudSync } from '../services/cloudSync.js';
 
 const router = Router();
 router.use(requireAuth(['admin']));
 const refresh = (req) => {
   const io = req.app.get('io');
   if (io) io.emit('snapshot', getSnapshot());
+  setImmediate(() => cloudSync.reconcileHighWaterMark().catch(() => {}));
 };
 
 /* ---------- users ---------- */
@@ -652,6 +654,31 @@ router.get('/export.csv', (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="sales-${from}_to_${to}.csv"`);
   res.send([header, ...body].join('\n'));
+});
+
+/* ---------- Tier 2 Hybrid Cloud Sync Endpoints ---------- */
+router.get('/cloud-sync/status', (req, res) => {
+  res.json(cloudSync.getStatus());
+});
+
+router.post('/cloud-sync/push', async (req, res, next) => {
+  try {
+    const result = await cloudSync.pushAllToCloud();
+    refresh(req);
+    res.json({ ok: true, message: 'All floor programs, users, batches, and sales closures pushed to Cloud PostgreSQL.', result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/cloud-sync/pull', async (req, res, next) => {
+  try {
+    const result = await cloudSync.pullAllFromCloud();
+    refresh(req);
+    res.json({ ok: true, message: 'Hydrated local In-Memory Engine from Cloud PostgreSQL successfully.', result });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
