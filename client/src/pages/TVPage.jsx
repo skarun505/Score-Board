@@ -179,7 +179,8 @@ export default function TVPage() {
       const batch = queue.current.splice(0);
       const milestone = batch.find((e) => e.milestone)?.milestone || null;
       setCelebration({ batch, milestone });
-      play(milestone ? (milestone.type === 'target_hit' ? 'applause' : 'gong') : 'bell', settingsRef.current);
+      const winningSound = settingsRef.current.sale_sound || 'bell';
+      play(milestone ? (milestone.type === 'target_hit' ? 'applause' : 'gong') : winningSound, settingsRef.current);
       fireConfetti(batch.length > 1 || !!milestone);
       await sleep(milestone ? 7500 : 4500);
       setCelebration(null);
@@ -221,7 +222,7 @@ export default function TVPage() {
     });
     s.on('remote_action', (data) => {
       if (data?.action === 'test_sound' || data?.action === 'test_bell') {
-        play('bell', settingsRef.current);
+        play(settingsRef.current.sale_sound || 'bell', settingsRef.current);
       } else if (data?.action === 'test_gong') {
         play('gong', settingsRef.current);
       } else if (data?.action === 'test_cheer') {

@@ -216,6 +216,7 @@ router.patch('/statuses/:id',
 /* ---------- settings ---------- */
 const SETTING_KEYS = [
   'sound_enabled',
+  'sale_sound',
   'normal_volume',
   'quiet_start',
   'quiet_end',

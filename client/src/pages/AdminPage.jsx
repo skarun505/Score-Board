@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api.js';
+import { play } from '../sound.js';
 
 export default function AdminPage() {
   const [session, setSession] = useState(() => JSON.parse(localStorage.getItem('admin_session') || 'null'));
@@ -1132,6 +1133,36 @@ export default function AdminPage() {
                   <option value="1">Enabled (Active)</option>
                   <option value="0">Disabled (Global Mute)</option>
                 </select>
+              </div>
+
+              <div className="form-group" style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.85rem', border: '1.5px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem' }}>
+                  <label style={{ margin: 0, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <i className="fas fa-bell text-warning" /> Sales Closure Winning Sound
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-secondary small"
+                    onClick={() => play(settings.sale_sound || 'bell', settings)}
+                    style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <i className="fas fa-volume-high" /> Test Sound
+                  </button>
+                </div>
+                <select
+                  value={settings.sale_sound || 'bell'}
+                  onChange={(e) => setSettings({ ...settings, sale_sound: e.target.value })}
+                  style={{ width: '100%', padding: '0.65rem 0.9rem', borderRadius: '0.6rem', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', fontWeight: 600, background: '#ffffff' }}
+                >
+                  <option value="bell">🔔 Classic Floor Bell Chime (Rich Metallic Bell)</option>
+                  <option value="applause">🎺 Triumphant Rising Victory Fanfare (Cheer & Brass)</option>
+                  <option value="gong">🏮 Deep Resonant Floor Gong (Dramatic Impact)</option>
+                  <option value="chime">✨ Crystal Two-Tone Chime (Clean & Sparkling)</option>
+                  <option value="soft">🎵 Soft Affirmative Melodic Chime (Gentle & Smooth)</option>
+                </select>
+                <span className="muted small" style={{ display: 'block', marginTop: '0.4rem', lineHeight: 1.4 }}>
+                  This sound broadcasts live on the 108" TV screen whenever a new sale is closed on the floor.
+                </span>
               </div>
 
               <div className="form-group">
