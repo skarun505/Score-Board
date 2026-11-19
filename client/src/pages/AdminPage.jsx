@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../api.js';
 import { play } from '../sound.js';
 
@@ -53,6 +53,11 @@ export default function AdminPage() {
   const [quickStatusCode, setQuickStatusCode] = useState('sale_closed');
   const [quickLeadRef, setQuickLeadRef] = useState('');
   const [quickSaving, setQuickSaving] = useState(false);
+
+  // Custom Sound Upload state
+  const soundFileRef = useRef();
+  const [uploadingSound, setUploadingSound] = useState(false);
+  const [soundMsg, setSoundMsg] = useState('');
 
   // Hybrid 3-Tier Architecture Cloud Sync state
   const [cloudSyncStatus, setCloudSyncStatus] = useState(null);
@@ -297,6 +302,63 @@ export default function AdminPage() {
       fetchAll();
     } catch (err) {
       alert(err.message);
+    }
+  }
+
+  // Custom winning sound upload & reset
+  async function handleSoundUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Audio file size must be under 8 MB.');
+      return;
+    }
+    setUploadingSound(true);
+    setSoundMsg('');
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const r = await api('/api/admin/sound/upload', {
+          method: 'POST',
+          token,
+          body: { audio: ev.target.result, filename: file.name },
+        });
+        setSettings((prev) => ({
+          ...prev,
+          sale_sound: r.sound_url,
+          sale_sound_url: r.sound_url,
+          sale_sound_name: r.sound_name,
+        }));
+        setSoundMsg(`✅ Custom sound "${r.sound_name}" uploaded and set!`);
+        play(r.sound_url, { ...settings, sound_enabled: '1' });
+        fetchAll();
+      } catch (err) {
+        alert(err.message || 'Failed to upload audio file');
+      } finally {
+        setUploadingSound(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleResetSound() {
+    if (!window.confirm('Reset winning sound back to the default metallic bell?')) return;
+    try {
+      await api('/api/admin/sound/custom', {
+        method: 'DELETE',
+        token,
+      });
+      setSettings((prev) => ({
+        ...prev,
+        sale_sound: 'bell',
+        sale_sound_url: '',
+        sale_sound_name: '',
+      }));
+      setSoundMsg('Reset to default bell sound.');
+      play('bell', { ...settings, sound_enabled: '1' });
+      fetchAll();
+    } catch (err) {
+      alert(err.message || 'Failed to reset sound');
     }
   }
 
@@ -1135,8 +1197,8 @@ export default function AdminPage() {
                 </select>
               </div>
 
-              <div className="form-group" style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.85rem', border: '1.5px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem' }}>
+              <div className="form-group" style={{ background: '#f8fafc', padding: '1.1rem 1.25rem', borderRadius: '0.85rem', border: '1.5px solid #cbd5e1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
                   <label style={{ margin: 0, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                     <i className="fas fa-bell text-warning" /> Sales Closure Winning Sound
                   </label>
@@ -1152,16 +1214,88 @@ export default function AdminPage() {
                 <select
                   value={settings.sale_sound || 'bell'}
                   onChange={(e) => setSettings({ ...settings, sale_sound: e.target.value })}
-                  style={{ width: '100%', padding: '0.65rem 0.9rem', borderRadius: '0.6rem', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', fontWeight: 600, background: '#ffffff' }}
+                  style={{ width: '100%', padding: '0.65rem 0.9rem', borderRadius: '0.6rem', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', fontWeight: 600, background: '#ffffff', marginBottom: '0.75rem' }}
                 >
                   <option value="bell">🔔 Classic Floor Bell Chime (Rich Metallic Bell)</option>
                   <option value="applause">🎺 Triumphant Rising Victory Fanfare (Cheer & Brass)</option>
                   <option value="gong">🏮 Deep Resonant Floor Gong (Dramatic Impact)</option>
                   <option value="chime">✨ Crystal Two-Tone Chime (Clean & Sparkling)</option>
                   <option value="soft">🎵 Soft Affirmative Melodic Chime (Gentle & Smooth)</option>
+                  {settings.sale_sound_url && (
+                    <option value={settings.sale_sound_url}>
+                      📁 Custom Audio: {settings.sale_sound_name || 'Uploaded File'}
+                    </option>
+                  )}
                 </select>
-                <span className="muted small" style={{ display: 'block', marginTop: '0.4rem', lineHeight: 1.4 }}>
-                  This sound broadcasts live on the 108" TV screen whenever a new sale is closed on the floor.
+
+                {/* Upload MP3 or Audio file action box */}
+                <div style={{
+                  background: '#ffffff',
+                  border: '1px dashed #94a3b8',
+                  borderRadius: '0.65rem',
+                  padding: '0.75rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.6rem',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <i className="fas fa-file-audio" style={{ fontSize: '1.4rem', color: '#3b82f6' }} />
+                    <div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#1e293b' }}>
+                        {settings.sale_sound_url ? (
+                          <span>Active Custom File: <b>{settings.sale_sound_name || 'Custom Audio'}</b></span>
+                        ) : (
+                          <span>Upload Custom Winning Sound (MP3, WAV, OGG, M4A)</span>
+                        )}
+                      </div>
+                      <span className="muted small">Supports MP3, WAV, OGG, M4A, AAC · Max 8 MB</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      ref={soundFileRef}
+                      type="file"
+                      accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac"
+                      style={{ display: 'none' }}
+                      onChange={handleSoundUpload}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary small"
+                      disabled={uploadingSound}
+                      onClick={() => soundFileRef.current?.click()}
+                      style={{ padding: '0.4rem 0.85rem', fontWeight: 700 }}
+                    >
+                      {uploadingSound ? (
+                        <><i className="fas fa-spinner fa-spin" /> Uploading...</>
+                      ) : (
+                        <><i className="fas fa-cloud-arrow-up" /> Choose Audio File</>
+                      )}
+                    </button>
+                    {settings.sale_sound_url && (
+                      <button
+                        type="button"
+                        className="btn btn-danger small"
+                        onClick={handleResetSound}
+                        title="Remove custom audio and revert to default bell"
+                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                      >
+                        <i className="fas fa-trash" /> Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {soundMsg && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#059669', fontWeight: 700 }}>
+                    {soundMsg}
+                  </div>
+                )}
+                <span className="muted small" style={{ display: 'block', marginTop: '0.45rem', lineHeight: 1.4 }}>
+                  This sound automatically broadcasts across the 108" TV screen and mobile workstations when a sale is closed.
                 </span>
               </div>
 

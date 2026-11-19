@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import { db, dbPath, audit, businessDate } from '../db.js';
+import { db, dbPath, audit, businessDate, uploadsDir } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { voidEvent, HttpError } from '../services/events.js';
 import { getSnapshot } from '../services/dashboard.js';
@@ -217,6 +217,8 @@ router.patch('/statuses/:id',
 const SETTING_KEYS = [
   'sound_enabled',
   'sale_sound',
+  'sale_sound_url',
+  'sale_sound_name',
   'normal_volume',
   'quiet_start',
   'quiet_end',
@@ -240,6 +242,83 @@ router.put('/settings', (req, res) => {
   audit(req.user.id, 'settings.update', 'settings', null, req.body);
   refresh(req);
   res.json({ ok: true });
+});
+
+/** Strips audio data-url prefix and returns Buffer */
+function decodeBase64Audio(dataUrl) {
+  const match = dataUrl.match(/^data:(audio\/[a-z0-9\-+.]+);base64,(.+)$/i);
+  if (!match) throw new HttpError(400, 'Invalid audio format. Please provide a valid MP3, WAV, OGG, or AAC file.');
+  const mime = match[1].toLowerCase();
+  let ext = 'mp3';
+  if (mime.includes('wav')) ext = 'wav';
+  else if (mime.includes('ogg')) ext = 'ogg';
+  else if (mime.includes('aac')) ext = 'aac';
+  else if (mime.includes('mp4') || mime.includes('m4a')) ext = 'm4a';
+  else if (mime.includes('webm')) ext = 'webm';
+  else if (mime.includes('mpeg') || mime.includes('mp3')) ext = 'mp3';
+
+  const buf = Buffer.from(match[2], 'base64');
+  if (buf.length > 8 * 1024 * 1024) throw new HttpError(400, 'Audio file must be under 8 MB.');
+  return { buf, ext, mime };
+}
+
+/**
+ * POST /api/admin/sound/upload
+ * Upload custom MP3 / audio file for sales closure winning sound
+ */
+router.post('/sound/upload', (req, res, next) => {
+  try {
+    const { audio, filename: originalName } = req.body || {};
+    if (!audio) throw new HttpError(400, 'audio field is required');
+
+    const { buf, ext } = decodeBase64Audio(audio);
+    const ts = Date.now();
+    const filename = `winning_sound_${ts}.${ext}`;
+    const filePath = path.join(uploadsDir, filename);
+
+    fs.writeFileSync(filePath, buf);
+
+    const soundUrl = `/uploads/${filename}`;
+    const displayName = originalName || `Custom ${ext.toUpperCase()} Sound`;
+
+    const up = db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+    up.run('sale_sound', soundUrl);
+    up.run('sale_sound_url', soundUrl);
+    up.run('sale_sound_name', displayName);
+
+    audit(req.user.id, 'settings.upload_sound', 'settings', null, { filename, displayName });
+    refresh(req);
+
+    res.json({ ok: true, sound_url: soundUrl, sound_name: displayName });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * DELETE /api/admin/sound/custom
+ * Reset custom sound back to default bell
+ */
+router.delete('/sound/custom', (req, res, next) => {
+  try {
+    const currentUrl = db.prepare("SELECT value FROM settings WHERE key = 'sale_sound_url'").get()?.value;
+    if (currentUrl && currentUrl.startsWith('/uploads/')) {
+      const p = path.join(uploadsDir, path.basename(currentUrl));
+      try { fs.unlinkSync(p); } catch {}
+    }
+
+    const up = db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+    up.run('sale_sound', 'bell');
+    up.run('sale_sound_url', '');
+    up.run('sale_sound_name', '');
+
+    audit(req.user.id, 'settings.reset_sound', 'settings', null, {});
+    refresh(req);
+
+    res.json({ ok: true, message: 'Reset to default bell sound' });
+  } catch (e) {
+    next(e);
+  }
 });
 
 /* ---------- TV Broadcast and Remote Diagnostics ---------- */

@@ -180,4 +180,22 @@ describe('Gamification Unit Tests', () => {
     assert.equal(res8.streak_broken, true);
     assert.equal(res8.streak, 1); // Streak ended and restarted
   });
+
+  test('Admin winning sound settings configuration', () => {
+    // Save custom sound setting
+    const testSoundUrl = '/uploads/test_chime.mp3';
+    db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .run('sale_sound', testSoundUrl);
+    db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .run('sale_sound_url', testSoundUrl);
+    db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .run('sale_sound_name', 'Golden Chime');
+
+    const sound = db.prepare("SELECT value FROM settings WHERE key = 'sale_sound'").get()?.value;
+    assert.equal(sound, testSoundUrl);
+
+    // Reset back
+    db.prepare("UPDATE settings SET value = 'bell' WHERE key = 'sale_sound'").run();
+    db.prepare("UPDATE settings SET value = '' WHERE key = 'sale_sound_url'").run();
+  });
 });

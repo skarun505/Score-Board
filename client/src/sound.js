@@ -162,8 +162,12 @@ function playSynth(name, vol) {
 function load(name) {
   if (typeof Audio === 'undefined') return null;
   if (!cache[name]) {
-    cache[name] = new Audio(`/sounds/${name}.mp3`);
-    cache[name].preload = 'auto';
+    const src = (name.startsWith('/') || name.startsWith('http') || name.startsWith('data:'))
+      ? name
+      : `/sounds/${name}.mp3`;
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    cache[name] = audio;
   }
   return cache[name];
 }
@@ -183,8 +187,10 @@ export function play(name, settings, scale = 1) {
   const vol = calculateVolume(settings, new Date(), scale);
   if (vol <= 0) return;
 
-  // 1. Play authentic Audio file first (e.g. Bell Sound for sales closure)
-  const a = load(name);
+  const targetSound = (name === 'custom' && settings?.sale_sound_url) ? settings.sale_sound_url : name;
+
+  // 1. Play authentic Audio file first (e.g. custom MP3 or sound file)
+  const a = load(targetSound);
   if (a) {
     a.currentTime = 0;
     a.volume = vol;
